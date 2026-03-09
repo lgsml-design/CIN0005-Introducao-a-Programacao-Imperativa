@@ -2,4 +2,4 @@ A questão estruturada entorno da formula de Gauss, que calcula a soma de todos 
 Após apliquei a formula de Gauss tanto nos multiplos do divisor1 quanto nos multiplos do divisor B para saber a soma de seus multiplos, após isso devolvi o valor dos multiplos comuns q haviam sido subtraidos em dois momentos por aparecerem tanto nos de A quanto nos de B
 Dessa forma, sobrando somente o valor da soma dos numeros até o numero, removendo os multiplos do divisor A e do divisor B.
 
-Me utilizei do Claude para obter a formula de Gauss (não lembrava a formula com precisão nem o nome, somente sabia q existia e que seria mt útil).
+Me utilizei do Claude para obter a formula de Gauss (não lembrava a formula com precisão nem o nome, somente sabia q existia e que seria mt útil), também utilizei para a correção de erros sintaticos.
