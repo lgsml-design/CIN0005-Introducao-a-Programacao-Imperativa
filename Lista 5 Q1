@@ -1,0 +1,168 @@
+obs: usei IA para comentar e ajeitar alguns bugs q eu estava com preguiça de corrigir :|
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/*
+ * Lê uma linha do stdin e armazena no buffer.
+ * Como o buffer pode precisar crescer, usamos realloc e devolvemos
+ * o ponteiro atualizado como retorno da função.
+ *
+ * - buffer:       onde os caracteres vão sendo guardados
+ * - bytes_usados: quantos bytes do buffer já estão ocupados
+ * - capacidade:   tamanho total alocado do buffer
+ * - posicoes:     vetor que guarda onde cada linha começa dentro do buffer
+ * - indice:       qual linha estamos lendo agora
+ */
+char *ler_linha(char *buffer, size_t *bytes_usados, size_t *capacidade,
+                int *posicoes, int indice)
+{
+    /* marca o início desta linha no buffer */
+    posicoes[indice] = (int)*bytes_usados;
+
+    int caractere;
+    while ((caractere = getchar()) != EOF && caractere != '\n') {
+
+        /* se o buffer estiver cheio, dobra a capacidade antes de inserir */
+        if (*bytes_usados + 1 >= *capacidade) {
+            *capacidade *= 2;
+            char *novo_buffer = realloc(buffer, *capacidade);
+            if (!novo_buffer) return NULL;
+            buffer = novo_buffer;
+        }
+
+        buffer[(*bytes_usados)++] = (char)caractere;
+    }
+
+    /* garante espaço para o '\0' que termina a string */
+    if (*bytes_usados + 1 >= *capacidade) {
+        *capacidade *= 2;
+        char *novo_buffer = realloc(buffer, *capacidade);
+        if (!novo_buffer) return NULL;
+        buffer = novo_buffer;
+    }
+
+    /* fecha a string com nulo e avança o contador */
+    buffer[(*bytes_usados)++] = '\0';
+
+    return buffer;
+}
+
+/*
+ * Intercala as 'quantidade' strings armazenadas no buffer coluna por coluna.
+ * Ou seja, pega o 1º caractere de cada string, depois o 2º, e assim por diante,
+ * até todas as strings terem sido completamente percorridas.
+ *
+ * Exemplo com "ab" e "cd": a, c, b, d → "acbd"
+ */
+char *mesclar_strings(char *buffer, int *posicoes, int quantidade) {
+
+    /* calcula o tamanho total somando o comprimento de cada string */
+    size_t total = 0;
+    for (int i = 0; i < quantidade; i++)
+        total += strlen(buffer + posicoes[i]);
+
+    char *mesclado = malloc(total + 1);
+    if (!mesclado) return NULL;
+
+    size_t pos_escrita = 0;
+    int ainda_rodando = 1;
+
+    /* avança coluna por coluna enquanto pelo menos uma string ainda tiver caracteres */
+    for (size_t coluna = 0; ainda_rodando; coluna++) {
+        ainda_rodando = 0;
+        for (int i = 0; i < quantidade; i++) {
+            char *palavra = buffer + posicoes[i];
+
+            /* só copia se esta string ainda tiver caractere nesta coluna */
+            if (coluna < strlen(palavra)) {
+                mesclado[pos_escrita++] = palavra[coluna];
+                ainda_rodando = 1;
+            }
+        }
+    }
+
+    mesclado[pos_escrita] = '\0';
+    return mesclado;
+}
+
+/*
+ * Percorre o texto procurando dois caracteres iguais lado a lado.
+ * Quando encontra, substitui o primeiro pelo próximo da sequência do alfabeto
+ * (ex: 'a'+'a' → 'b'), remove o segundo deslocando o resto da string,
+ * e volta ao começo para verificar se a fusão gerou novos pares.
+ * O 'z' vira 'a' para fechar o ciclo do alfabeto.
+ */
+void fundir_caracteres(char *texto) {
+    int houve_mudanca = 1;
+
+    /* continua repetindo enquanto houver alguma fusão no passo anterior */
+    while (houve_mudanca) {
+        houve_mudanca = 0;
+        int tamanho = (int)strlen(texto);
+
+        for (int i = 0; i < tamanho - 1; i++) {
+            if (texto[i] == texto[i + 1]) {
+
+                /* avança o caractere fundido para o próximo do alfabeto */
+                texto[i] = (texto[i] == 'z') ? 'a' : texto[i] + 1;
+
+                /* remove o caractere duplicado empurrando o resto para a esquerda */
+                memmove(&texto[i + 1], &texto[i + 2], tamanho - i - 1);
+                tamanho--;
+                texto[tamanho] = '\0';
+
+                houve_mudanca = 1;
+
+                /* volta ao começo imediatamente, pois a fusão pode ter
+                   criado um novo par na posição atual ou antes dela */
+                break;
+            }
+        }
+    }
+}
+
+int main(void) {
+    int quantidade_linhas;
+    if (scanf("%d\n", &quantidade_linhas) != 1 || quantidade_linhas <= 0) return 1;
+
+    /* aloca o vetor que guarda onde cada linha começa dentro do buffer */
+    int *posicoes = malloc(quantidade_linhas * sizeof(int));
+    if (!posicoes) return 1;
+
+    /* buffer inicial pequeno; vai crescendo conforme necessário */
+    size_t capacidade   = 64;
+    size_t bytes_usados = 0;
+    char  *buffer       = malloc(capacidade);
+    if (!buffer) { free(posicoes); return 1; }
+
+    /* lê cada linha e acumula tudo no mesmo buffer contíguo */
+    for (int i = 0; i < quantidade_linhas; i++) {
+        char *novo_buffer = ler_linha(buffer, &bytes_usados, &capacidade, posicoes, i);
+        if (!novo_buffer) {
+            free(buffer);
+            free(posicoes);
+            return 1;
+        }
+        /* atualiza o ponteiro caso o realloc tenha movido o bloco de memória */
+        buffer = novo_buffer;
+    }
+
+    /* intercala as strings coluna por coluna */
+    char *resultado = mesclar_strings(buffer, posicoes, quantidade_linhas);
+    if (!resultado) { free(buffer); free(posicoes); return 1; }
+
+    /* imprime o resultado antes das fusões */
+    printf("%s\n", resultado);
+
+    /* aplica as fusões e imprime o resultado final */
+    fundir_caracteres(resultado);
+    printf("%s\n", resultado);
+
+    free(resultado);
+    free(buffer);
+    free(posicoes);
+    return 0;
+}
