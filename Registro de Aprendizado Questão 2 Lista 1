@@ -7,17 +7,31 @@ Me utilizei do Claude para obter a formula de Gauss (não lembrava a formula com
 #include <stdio.h>
 
 int main() {
+    // Uso de 'long long' (inteiro de 64 bits) para evitar "overflow".
+    // Como as multiplicações na fórmula podem gerar números gigantescos, 
+    // o int normal (32 bits) não daria conta e o resultado daria erro.
     long long N, A, B;
+    
+    // Leitura do limite N e dos divisores A e B
     scanf(" %lld", &N); 
     scanf(" %lld %lld", &A, &B);
 
-    long long kA  = N / A,       kB  = N / B,       kAB = N / (A * B);
-    long long resultado = N * (N + 1) / 2
-                        - A   * kA  * (kA  + 1) / 2
-                        - B   * kB  * (kB  + 1) / 2
-                        + A*B * kAB * (kAB + 1) / 2;  
+    // Calcula a quantidade de múltiplos de A, de B e de ambos (A * B) que existem de 1 até N.
+    // O divisão entre inteiros em C já descarta as casas decimais, o que é perfeito aqui.
+    long long kA  = N / A;        // Quantidade de múltiplos de A
+    long long kB  = N / B;        // Quantidade de múltiplos de B
+    long long kAB = N / (A * B);  // Quantidade de múltiplos simultâneos de A e B
+
+    // Aplicação do "Princípio da Inclusão-Exclusão" usando a soma de uma Progressão Aritmética (PA)
+    // A soma dos números de 1 até X é dada pela fórmula Gaussiana: X * (X + 1) / 2
+    long long resultado = N * (N + 1) / 2                // 1) Soma de TODOS os números de 1 até N
+                        - A   * kA  * (kA  + 1) / 2      // 2) Subtrai a soma de todos os múltiplos de A
+                        - B   * kB  * (kB  + 1) / 2      // 3) Subtrai a soma de todos os múltiplos de B
+                        + A*B * kAB * (kAB + 1) / 2;     // 4) Soma de volta os múltiplos de A e B juntos (pois foram subtraídos duas vezes)
+    
+    // Verifica se o resultado final da soma é par ou ímpar e imprime o meme correspondente
     if (resultado % 2 == 0)
-        printf("%lld\nL� ele!!!\n", resultado);
+        printf("%lld\nLá ele!!!\n", resultado);
     else
         printf("%lld\nOpa xupenio AULAS...\n", resultado);
 
