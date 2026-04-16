@@ -1,4 +1,86 @@
-feita inteira por IA, porém a logica foi a seguinte :
-salvar cliente a cliente em seus horários
-salvar a quantidade de latas compradas em cada horario e o total, enquanto vai verificando se bateu ou não a quantidade necessaria
+#include <stdio.h>
 
+int main() {
+    int N, X, Y;
+    scanf("%d %d %d", &N, &X, &Y);
+    // N = total de clientes esperados
+    // X = "cliente da sorte": a cada X clientes, o que não apareceu no sistema compra 1 lata
+    // Y = quantos registros existem no sistema (clientes que já foram cadastrados)
+
+    int sys_cliente[200]; // número do cliente registrado
+    int sys_latas[200];   // quantas latas esse cliente comprou
+    int sys_min[200];     // horário da compra em minutos desde 00:00
+
+    // lê os registros do sistema
+    for (int i = 0; i < Y; i++) {
+        int hh, mm;
+        scanf("%d:%d %d", &hh, &mm, &sys_latas[i]);
+        sys_min[i] = hh * 60 + mm;
+
+        // converte o horário para o número do cliente:
+        // atendimentos começam às 07:00, um cliente a cada 3 minutos
+        sys_cliente[i] = (hh * 60 + mm - 7 * 60) / 3;
+    }
+
+    int total      = 0;  // total de latas vendidas até agora
+    int vencedor   = -1; // cliente que cruzou a marca de 50 latas (-1 = ainda não aconteceu)
+    int hora_venc_min = 0;
+    int latas_venc    = 0;
+
+    // percorre os clientes em ordem de atendimento
+    for (int k = 1; k <= N; k++) {
+        int latas_k    = 0;
+        int no_sistema = 0;
+        int min_k      = 0;
+
+        // tenta achar o cliente k nos registros do sistema
+        for (int i = 0; i < Y; i++) {
+            if (sys_cliente[i] == k) {
+                latas_k    = sys_latas[i];
+                min_k      = sys_min[i];
+                no_sistema = 1;
+                break;
+            }
+        }
+
+        // cliente não está no sistema — verifica se é um "cliente da sorte"
+        if (!no_sistema) {
+            if (X != 0 && k % X == 0) {
+                latas_k = 1;
+                min_k   = 7 * 60 + k * 3; // horário estimado: 07:00 + k*3 minutos
+            }
+        }
+
+        // cliente não comprou nada, pula
+        if (latas_k == 0) continue;
+
+        // verifica se esse cliente é quem cruza a marca das 50 latas
+        if (total < 50 && total + latas_k >= 50) {
+            vencedor      = k;
+            hora_venc_min = min_k;
+            latas_venc    = latas_k;
+        }
+
+        total += latas_k;
+
+        // achou o vencedor, não precisa continuar
+        if (vencedor != -1) break;
+    }
+
+    if (vencedor == -1) {
+        printf("Ainda nao foram vendidas latas suficientes. Faltam %d latas.\n", 50 - total);
+    } else {
+        int hh = hora_venc_min / 60;
+        int mm = hora_venc_min % 60;
+
+        // só muda "lata" / "latas" dependendo da quantidade
+        if (latas_venc == 1)
+            printf("Quem levou a cesta basica foi o %d* cliente atendido por coragem, as %02d:%02d. Que comprou %d lata.\n",
+                   vencedor, hh, mm, latas_venc);
+        else
+            printf("Quem levou a cesta basica foi o %d* cliente atendido por coragem, as %02d:%02d. Que comprou %d latas.\n",
+                   vencedor, hh, mm, latas_venc);
+    }
+
+    return 0;
+}
