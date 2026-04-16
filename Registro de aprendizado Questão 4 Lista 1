@@ -1,1 +1,59 @@
 Foi feita inteiramente na mão sem a utilização de nenhuma LLM
+
+#include <stdio.h>
+#include <stdlib.h> // Biblioteca necessária para usar a função abs() (valor absoluto)
+
+int main(){
+    // Declaração das variáveis
+    int x, y, evitar, quadrante_inicial;
+    int andary, andarx;
+    
+    // Lê as coordenadas iniciais (x, y) e o número do quadrante proibido
+    scanf("%d %d %d", &x, &y, &evitar);
+    
+    // ==========================================
+    // DETERMINAÇÃO DO QUADRANTE INICIAL
+    // ==========================================
+    if (x > 0 && y > 0){
+        quadrante_inicial = 1; // 1º Quadrante: X e Y positivos
+    } else {
+        if (x < 0 && y > 0){
+            quadrante_inicial = 2; // 2º Quadrante: X negativo, Y positivo
+        } else {
+            if (x < 0 && y < 0){
+                quadrante_inicial = 3; // 3º Quadrante: X e Y negativos
+            } else {
+                quadrante_inicial = 4; // 4º Quadrante: X positivo, Y negativo
+            }
+        }
+    }   
+    
+    // Se o ponto de partida já for o quadrante a ser evitado, a caminhada nem começa
+    if (quadrante_inicial == evitar){
+        printf("caminhada invalida\n");
+    } else {
+        // Calcula a quantidade de passos necessários para cruzar os eixos
+        // abs() transforma números negativos em positivos (distância pura)
+        // O '+ 1' garante que ele passe do eixo (linha zero) e entre no outro quadrante
+        andary = abs(y) + 1;
+        andarx = abs(x) + 1;
+        
+        // ==========================================
+        // LÓGICA DE ROTA PARA EVITAR O QUADRANTE
+        // ==========================================
+        // Verifica se o quadrante inicial e o proibido estão na mesma metade "horizontal" do mapa
+        // (Quadrantes 1 e 2 estão na parte de cima; 3 e 4 estão na parte de baixo)
+        if (((quadrante_inicial == 1 || quadrante_inicial == 2) && (evitar == 1 || evitar == 2)) || 
+            ((quadrante_inicial == 3 || quadrante_inicial == 4) && (evitar == 3 || evitar == 4))){
+            
+            // Se estiverem na mesma metade (cima ou baixo), movemos no eixo Y primeiro 
+            // para "pular" para a outra metade segura, e depois andamos no eixo X
+            printf("%d passos em y e %d passos em x\n", andary, andarx);
+        } else { 
+            // Se não estiverem na mesma metade (ex: 1 e 3), andar no eixo X primeiro é a rota segura
+            printf("%d passos em x e %d passos em y\n", andarx, andary);
+        }
+    }   
+    
+    return 0; // Finaliza o programa com sucesso
+}
