@@ -1,1 +1,97 @@
 Questão feita praticamente toda na mão, utilizei do claude na parte do investimento = 3 por não estar entendendo de forma clara o que era requisitado
+
+
+#include <stdio.h>
+
+int main() {
+    int total;
+    int x, y, z;
+    int investimento = 0;
+    int impossivel = 0;
+    int efetuado = 0;
+    float A = 0, B = 0, C = 0;
+
+    scanf("%d %d %d %d", &total, &x, &y, &z);
+
+    if (1) {
+        A = (float)total * x / 100;
+        B = (float)total * y / 100;
+        C = (float)total * z / 100;
+
+        if (A == (int)A && B == (int)B && C == (int)C) {
+            efetuado = 1;
+        } else {
+            int t1 = total + 1;
+            float A1 = (float)t1 * x / 100;
+            float B1 = (float)t1 * y / 100;
+            float C1 = (float)t1 * z / 100;
+            if (A1 == (int)A1 && B1 == (int)B1 && C1 == (int)C1
+                && 1 < (t1 - (A1 + B1 + C1))) {
+                A = A1; B = B1; C = C1;
+                investimento = 1;
+                efetuado = 1;
+            } else {
+                int t2 = total + 2;
+                float A2 = (float)t2 * x / 100;
+                float B2 = (float)t2 * y / 100;
+                float C2 = (float)t2 * z / 100;
+                if (A2 == (int)A2 && B2 == (int)B2 && C2 == (int)C2
+                    && 2 < (t2 - (A2 + B2 + C2))) {
+                    A = A2; B = B2; C = C2;
+                    investimento = 2;
+                    efetuado = 1;
+                } else {
+                    int t3 = total + 3;
+                    float A3 = (float)t3 * x / 100;
+                    float B3 = (float)t3 * y / 100;
+                    float C3 = (float)t3 * z / 100;
+                    if (A3 == (int)A3 && B3 == (int)B3 && C3 == (int)C3
+                        && 3 < (t3 - (A3 + B3 + C3))) {
+                        A = A3; B = B3; C = C3;
+                        investimento = 3;
+                        efetuado = 1;
+                    } else {
+                        impossivel = 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if (impossivel == 0) {
+        printf("Cada homem ficou com %d, %d e %d reais, respectivamente\n",
+               (int)A, (int)B, (int)C);
+    } else {
+        printf("Nao foi dessa vez que Rebeka pode ajudar...\n");
+    }
+
+    if (investimento == 2) {
+        char letra1, letra2, letra3;
+        scanf(" %c %c %c", &letra1, &letra2, &letra3);
+        int soma = (letra1 - 'a' + 1) + (letra2 - 'a' + 1) + (letra3 - 'a' + 1);
+        printf("%d\n", soma);
+    }
+
+    if (investimento == 3) {
+        int idade1, idade2, idade3;
+        scanf("%d %d %d", &idade1, &idade2, &idade3);
+        if ((idade1 % 3 == 0) || (idade2 % 3 == 0) || (idade3 % 3 == 0)) {
+            int soma_3 = (idade1 % 3 == 0 ? idade1 / 3 : 0)
+                      + (idade2 % 3 == 0 ? idade2 / 3 : 0)
+                      + (idade3 % 3 == 0 ? idade3 / 3 : 0);
+            printf("%d\n", soma_3);
+        }
+    }
+
+    int total_usado = total + investimento;
+    int sobra = total_usado - (int)(A + B + C);
+    int dinheiro_rebeka = 3 - investimento + sobra;
+
+    if (impossivel == 1 || dinheiro_rebeka < 7) {
+        printf("E parece que Rebeka vai ter que voltar andando...\n");
+    } else {
+        printf("Ela conseguiu! Rebeka voltou para casa e apanhou da mae por sumir noite passada!\n");
+    }
+
+    return 0;
+}
