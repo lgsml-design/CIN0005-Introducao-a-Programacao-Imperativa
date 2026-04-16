@@ -1,3 +1,43 @@
 primeiramente gostaria de salientar, que passei 1 semana esperando resposta dos monitores para 1 unico caso de teste para ter uma ideia oq se tratava o problema.
 questão simples passei 1 bom tempo tentando entender onde que se posicionaria o esconderijo se era onde teve mais ocorrencia ou a casa final.
 codigo inteiramente feito por mim sem IA 
+
+#include <stdio.h>
+
+void cidade_contador(char movimentos[20], int cidade[4][4], int row, int col) {
+    for (int i = 0; i < 20; i++) {
+        char m = movimentos[i];
+        if      (m == 'c' && row > 0)   row--;
+        else if (m == 'b' && row < 3)   row++;
+        else if (m == 'e' && col > 0)   col--;
+        else if (m == 'd' && col < 3)   col++;
+        cidade[row][col]++;
+    }
+}
+
+int main() {
+    int cidade[4][4] = {0};
+    char movimentos[20];
+    int row = 0, col = 0;
+
+    for (int i = 0; i < 20; i++) {
+        scanf(" %c", &movimentos[i]);
+    }
+
+    cidade[row][col]++;           
+    cidade_contador(movimentos, cidade, row, col);
+
+    int max = 0, best_row = 0, best_col = 0;
+    for (int r = 0; r < 4; r++) {
+        for (int c = 0; c < 4; c++) {
+            if (cidade[r][c] > max) {
+                max = cidade[r][c];
+                best_row = r;
+                best_col = c;
+            }
+        }
+    }
+
+    printf("Coordenada X:%d, Y:%d\n", best_col, best_row);
+    return 0;
+}
