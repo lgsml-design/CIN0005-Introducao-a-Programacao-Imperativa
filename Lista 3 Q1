@@ -1,1 +1,51 @@
 Codigo e logica feitos por mim, enviei para IA polir (ela acabou não fazendo nenhuma alteração somente mudou o nome das variaveis)
+
+
+#include <stdio.h>
+
+int main() {
+    int T;
+    scanf("%d", &T); // quantos casos de teste vão rodar
+
+    while (T--) {
+        int N;
+        scanf("%d", &N); // tamanho da sequência
+
+        int nums[100];
+        for (int i = 0; i < N; i++)
+            scanf("%d", &nums[i]);
+
+        // melhor sequência decrescente encontrada até agora
+        int best_start = 0, best_len = 1;
+
+        // sequência decrescente que está sendo analisada no momento
+        int curr_start = 0, curr_len = 1;
+
+        for (int i = 1; i < N; i++) {
+            if (nums[i] < nums[i-1]) {
+                // continua caindo — estende a sequência atual
+                curr_len++;
+                if (curr_len > best_len) {
+                    best_len  = curr_len;
+                    best_start = curr_start;
+                }
+            } else {
+                // subiu ou repetiu — começa uma nova sequência a partir daqui
+                curr_start = i;
+                curr_len   = 1;
+            }
+        }
+
+        // se nem chegou a 2 elementos, não tem sequência decrescente de verdade
+        if (best_len < 2) {
+            printf("0\n");
+        } else {
+            printf("%d\n", best_len);
+            for (int i = best_start; i < best_start + best_len; i++)
+                printf("%d ", nums[i]);
+            printf("\n");
+        }
+    }
+
+    return 0;
+}
