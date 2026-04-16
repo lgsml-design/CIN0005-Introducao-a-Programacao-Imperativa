@@ -1,1 +1,69 @@
 A logica foi pensada atraves de uma discussão em sala, e o codigo foi inteiro feito por mim ( IA somente para correção de bugs)
+
+
+#include <stdio.h>
+
+int main() {
+    int N, K, P;
+    
+    // Lê o início do intervalo (N), o limite (K) e a quantidade desejada de fatores primos (P)
+    scanf("%d %d %d", &N, &K, &P);
+
+    // 'first' vai guardar o 1º número válido encontrado. -1 significa "ainda não achei".
+    // 'Q' vai contar quantos OUTROS números válidos existem além do primeiro.
+    int first = -1, Q = 0;
+    
+    // Percorre todos os números no intervalo de N até K (exclusivo, ou seja, menor que K)
+    for (int num = N; num < K; num++) {
+        // Faz uma cópia de num para ir dividindo (n), e zera os contadores
+        int n = num, valid = 1, count = 0;
+        
+        // 0 e 1 não entram na regra de fatores primos, então pulamos
+        if (n <= 1) continue;
+        
+        
+        // O código vai dividindo por 2 para tirar os fatores pares
+        while (n % 2 == 0) n /= 2;
+        
+        // Testa os divisores ímpares, começando de 3 até a raiz quadrada de n
+        for (int i = 3; i * i <= n; i += 2) {
+            int freq = 0;
+            
+            // Enquanto for divisível por 'i', divide e conta a frequência desse fator
+            while (n % i == 0) { 
+                freq++; 
+                n /= i; 
+            }
+            
+            // A regra parece exigir que os fatores não se repitam (livre de quadrados). 
+            // Ex: 9 (3x3) ou 18 (2x3x3) são inválidos.
+            if (freq > 1) { 
+                valid = 0; 
+                break; 
+            }
+            
+            // Se o fator apareceu exatamente 1 vez, adicionamos à contagem de divisores
+            if (freq == 1) count++;
+        }
+        
+        // Se no final sobrou algum número maior que 1, ele é um número primo e também conta
+        if (n > 1) count++;
+        
+        // Se o número não teve fatores repetidos E tem exatamente P fatores distintos
+        if (valid && count == P) {
+            // Se for o primeiro que achamos, salvamos ele
+            if (first == -1) first = num;
+            // Se não for o primeiro, apenas aumentamos a contagem dos "restantes"
+            else Q++;
+        }
+    }
+
+    // Se saiu do loop e 'first' continua -1, não achou nada, imprime a mensagem da Dudinha
+    if (first == -1)
+        printf("Poxa dudinha, me desculpa, nao achei os numeros mas vou te mandar uma foto de um gatinho fofo.\n");
+    else
+        // Imprime o primeiro número encontrado e a quantidade dos DEMAIS números encontrados
+        printf("%d %d\n", first, Q);
+
+    return 0;
+}
