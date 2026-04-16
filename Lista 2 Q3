@@ -1,1 +1,86 @@
 foi codada e pensada por mim, enviei o meu codigo pronto para IA para ele polir ( sem prompt sem o texto da questão)
+
+
+#include <stdio.h>
+#include <stdlib.h> // Necessário para usar a função llabs() (valor absoluto para long long)
+
+int main(){
+    // Declaração das variáveis principais
+    int canais;
+    long long posicion;          // Usando long long para evitar overflow com números muito grandes
+    int canal = 1, minutofinal = 1;
+    long long termofinal = 0, distanciatotal = -1; // -1 indica que a distância ainda não foi calculada
+
+    // Lê a posição alvo e a quantidade de canais a serem analisados
+    scanf("%lld %d", &posicion, &canais);
+
+    // Loop que percorre cada um dos canais
+    for(int i = 1; i <= canais; i++){
+        long long first, second;
+        // Lê os dois primeiros números da sequência daquele canal
+        scanf("%lld %lld", &first, &second);
+
+        // Cria um vetor para guardar a sequência. Tamanho 10001 é um limite seguro 
+        // para não estourar a memória com os testes do problema
+        long long seq[10001];
+        seq[0] = first;
+        seq[1] = second;
+        int len = 2; // Tamanho atual da sequência gerada
+
+        // GERAÇÃO DA SEQUÊNCIA TIPO FIBONACCI
+        while(len < 10000){
+            // O próximo termo é a soma dos dois anteriores
+            seq[len] = seq[len-1] + seq[len-2];
+            len++;
+            
+            // Condição de parada de segurança e otimização:
+            // Se os DOIS últimos termos gerados já ultrapassaram a posição que queremos (posicion),
+            // a sequência só vai continuar crescendo e se distanciando. Então paramos de gerar.
+            if(len > 2 && seq[len-1] > posicion && seq[len-2] > posicion)
+                break;
+        }
+
+        // ==========================================
+        // BUSCA PELO VALOR MAIS PRÓXIMO DA POSIÇÃO
+        // ==========================================
+        for(int j = 0; j < len; j++){
+            // Calcula a distância absoluta entre o número da sequência e a posição alvo.
+            // Usa 'llabs' em vez de 'abs' porque estamos lidando com 'long long'.
+            long long dist = llabs(seq[j] - posicion);
+            
+            // Atualiza a melhor escolha se:
+            // 1. For o primeiro cálculo (distanciatotal == -1)
+            // 2. Ou achou uma distância menor
+            // 3. Ou a distância for IGUAL, mas o número do canal atual (i) for MAIOR (critério de desempate)
+            if(distanciatotal == -1 || dist < distanciatotal ||
+               (dist == distanciatotal && i > canal)){
+                
+                distanciatotal = dist; // Salva a nova menor distância
+                minutofinal = j + 1;   // O minuto é o índice + 1 (já que o vetor começa em 0)
+                canal = i;             // Salva de qual canal veio esse número
+                termofinal = seq[j];   // Salva qual foi o número que chegou mais perto
+            }
+        }
+    }
+
+    // SOMA DOS DÍGITOS DO TERMO VENCEDOR
+
+    int s = 0;
+    long long tmp = termofinal;
+    
+    // Enquanto o número for maior que 0, extrai o último dígito (% 10) e soma em 's'.
+    // Depois, remove o último dígito do número (/ 10).
+    while(tmp > 0){ 
+        s += tmp % 10; 
+        tmp /= 10; 
+    }
+
+    // Define a mensagem final baseada na soma dos dígitos (condição do ingresso VIP)
+    if(s > 10)
+        printf("Xupenio, para ir ao lulupalooza vc deve entrar no canal %d e sera chamado mais ou menos no minuto %d e com o VIP garantido!!!\n", canal, minutofinal);
+    else
+        // Corrigi um pequeno erro de caractere estranho aqui na palavra "nao"
+        printf("Xupenio, para ir ao lulupalooza vc deve entrar no canal %d e sera chamado mais ou menos no minuto %d, mas o ingresso VIP nao vai rolar :(\n", canal, minutofinal);
+
+    return 0;
+}
