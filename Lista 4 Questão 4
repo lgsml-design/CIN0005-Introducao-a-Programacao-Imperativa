@@ -1,1 +1,53 @@
 codigo completamente feito por mim
+
+#include <stdio.h>
+#include <string.h>
+
+// coloca os enfeites ao redor de uma peça 'P' na posição (x, y)
+void colocar_enfeites(char tab[][101], char orig[][101], int lin, int col, int x, int y) {
+    int lados[4][2]     = {{-1,0}, {0,-1}, {1,0}, {0,1}};
+    int diagonais[4][2] = {{1,1}, {1,-1}, {-1,1}, {-1,-1}};
+
+    // vizinhos diretos (cima, baixo, esquerda, direita) viram '+'
+    for (int p = 0; p < 4; p++) {
+        int tx = x + lados[p][0];
+        int ty = y + lados[p][1];
+        if (tx >= 0 && tx < lin && ty >= 0 && ty < col && orig[tx][ty] == '-')
+            tab[tx][ty] = '+';
+    }
+
+    // vizinhos diagonais viram 'x', mas só se o '+' não chegou lá antes
+    // ('+' tem prioridade sobre 'x' quando uma célula é diagonal de um 'P'
+    //  e lateral de outro)
+    for (int p = 0; p < 4; p++) {
+        int tx = x + diagonais[p][0];
+        int ty = y + diagonais[p][1];
+        if (tx >= 0 && tx < lin && ty >= 0 && ty < col && orig[tx][ty] == '-')
+            if (tab[tx][ty] != '+')
+                tab[tx][ty] = 'x';
+    }
+}
+
+int main() {
+    int linhas, colunas;
+    scanf("%d %d", &linhas, &colunas);
+
+    char tabela[100][101];   // versão que vai sendo modificada
+    char original[100][101]; // cópia intocada da entrada
+
+    for (int i = 0; i < linhas; i++) {
+        scanf("%s", tabela[i]);
+        strcpy(original[i], tabela[i]); // guarda o estado original antes de qualquer alteração
+    }
+
+    // para cada 'P' encontrado, espalha os enfeites ao redor
+    for (int i = 0; i < linhas; i++)
+        for (int j = 0; j < colunas; j++)
+            if (original[i][j] == 'P')
+                colocar_enfeites(tabela, original, linhas, colunas, i, j);
+
+    for (int i = 0; i < linhas; i++)
+        printf("%s\n", tabela[i]);
+
+    return 0;
+}
