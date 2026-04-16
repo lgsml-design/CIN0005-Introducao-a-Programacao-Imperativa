@@ -1,1 +1,73 @@
 codigo feito por mim e polido pela IA, a proposito a unica IA utilizada em todas as questões é o Claude, alterações somente no tamanho de alguns arrays 
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+int main() {
+    int R;
+    scanf("%d", &R); // quantas rodadas/strings vão ser processadas
+
+    char resultados[1000][65]; // strings após a transformação
+    int  tamanhos[1000];       // tamanho de cada uma (evita chamar strlen de novo depois)
+
+    for (int t = 0; t < R; t++) {
+        char S[65];
+        int F;
+        scanf("%s %d", S, &F); // string e quantas "viradas" aplicar
+        int n = strlen(S);
+
+        // aplica F viradas na string
+        // cada virada percorre da esquerda pra direita:
+        // - se achar um 'X', troca por 'O' e para
+        // - se achar qualquer outra coisa, vira pra 'X' e continua
+        // (funciona como um contador binário, mas com X e O)
+        for (int c = 0; c < F; c++) {
+            for (int i = 0; i < n; i++) {
+                if (S[i] == 'X') {
+                    S[i] = 'O';
+                    break;
+                } else {
+                    S[i] = 'X';
+                }
+            }
+        }
+
+        printf("%s\n", S);
+        strcpy(resultados[t], S);
+        tamanhos[t] = n;
+    }
+
+    // agora monta uma string gigante concatenando todos os resultados,
+    // com um caractere ornamento entre cada par de strings adjacentes
+    char gigante[1000 * 60 + 1000 + 5];
+    gigante[0] = '\0';
+
+    strcpy(gigante, resultados[0]);
+    int tam_atual = tamanhos[0];
+
+    for (int t = 1; t < R; t++) {
+        char ultimo   = gigante[tam_atual - 1]; // último char da string acumulada
+        char primeiro = resultados[t][0];        // primeiro char da próxima string
+
+        // o ornamento depende de duas condições independentes:
+        // - paridade do tamanho acumulado até agora
+        // - se o último e o primeiro char são iguais ou não
+        char ornamento;
+        if      (tam_atual % 2 == 0 && ultimo == primeiro) ornamento = '@';
+        else if (tam_atual % 2 != 0 && ultimo == primeiro) ornamento = '#';
+        else if (tam_atual % 2 == 0 && ultimo != primeiro) ornamento = '$';
+        else                                               ornamento = '%';
+
+        // insere o ornamento manualmente e emenda a próxima string
+        gigante[tam_atual]     = ornamento;
+        gigante[tam_atual + 1] = '\0';
+        tam_atual++;
+
+        strcat(gigante, resultados[t]);
+        tam_atual += tamanhos[t];
+    }
+
+    printf("%s\n", gigante);
+    return 0;
+}
