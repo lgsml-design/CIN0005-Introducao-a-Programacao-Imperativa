@@ -1,1 +1,66 @@
 feito por mim , utilização do claude para a correção da queda nas bordas das prateleiras que eu não estava entendendo corretamente. Estava na duvida se poderia usar goto já que ele pode em algum codigo causar graves problemas de logica. 
+
+#include <stdio.h>
+#include <string.h>
+
+#define MAXN 1005
+
+int m, n;
+char g[MAXN][MAXN];
+
+void flow(int r, int c) {
+    if (r < 0 || r >= m || c < 0 || c >= n) return;
+
+    g[r][c] = 'o';
+
+    // desce até bater em algo ou chegar no chão
+    int cr = r;
+    while (cr + 1 < m && g[cr + 1][c] != '#') {
+        cr++;
+        g[cr][c] = 'o';
+    }
+
+    // se parou por causa de uma prateleira, espalha por cima dela
+    if (cr + 1 < m && g[cr + 1][c] == '#') {
+        int shelf_r = cr + 1; // linha da prateleira
+
+        // descobre até onde a prateleira se estende pra cada lado
+        int left = c, right = c;
+        while (left  - 1 >= 0 && g[shelf_r][left  - 1] == '#') left--;
+        while (right + 1 <  n && g[shelf_r][right + 1] == '#') right++;
+
+        // preenche a água na linha acima da prateleira, de borda a borda
+        int spill_left  = left  - 1; // ponto onde vai transbordar à esquerda
+        int spill_right = right + 1; // ponto onde vai transbordar à direita
+        for (int sc = spill_left; sc <= spill_right; sc++)
+            if (sc >= 0 && sc < n && g[cr][sc] != '#')
+                g[cr][sc] = 'o';
+
+        // transborda pelos dois extremos e continua caindo recursivamente
+        if (spill_left  >= 0) flow(shelf_r, spill_left);
+        if (spill_right <  n) flow(shelf_r, spill_right);
+    }
+    // se não pousou em prateleira nenhuma, chegou no chão — para por aqui
+}
+
+int main() {
+    scanf("%d %d", &m, &n);
+    for (int i = 0; i < m; i++)
+        scanf("%s", g[i]);
+
+    // acha o 'o' inicial no grid e dispara a simulação
+    for (int r = 0; r < m; r++) {
+        for (int c = 0; c < n; c++) {
+            if (g[r][c] == 'o') {
+                flow(r, c);
+                goto done; // só existe uma fonte, não precisa continuar procurando
+            }
+        }
+    }
+
+    done:
+    for (int i = 0; i < m; i++)
+        printf("%s\n", g[i]);
+
+    return 0;
+}
