@@ -1,3 +1,84 @@
 codigo feito por mim (extremamente trabalhoso e cansativo) , solicitei q o claude fatorasse o código devido a nos ser informado o uso obrigatorio de multiplas funções quase no fim da semana.
-ele salva o mapa
-checa casa a casa para ver se o caminho é possivel
+#include <stdio.h>
+#include <string.h>
+
+#define MAXN 505
+
+char grid[MAXN][MAXN];
+int  dist[MAXN][MAXN];
+
+int qr[MAXN * MAXN], qc[MAXN * MAXN];
+
+int dr[] = {-1, 1,  0, 0};
+int dc[] = { 0, 0, -1, 1};
+
+int rows, cols;
+int ori_r  = -1, ori_c  = -1;
+int dest_r = -1, dest_c = -1;
+
+void ler_grid() {
+    for (int i = 0; i < rows; i++) {
+        scanf("%s", grid[i]);
+        for (int j = 0; j < cols; j++) {
+            if (grid[i][j] == 'o') { ori_r = i; ori_c = j; }
+            if (grid[i][j] == 'd') { dest_r = i; dest_c = j; }
+        }
+    }
+}
+
+void inicializar_dist() {
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            dist[i][j] = -1;
+}
+
+int fora_do_grid(int r, int c) {
+    return r < 0 || r >= rows || c < 0 || c >= cols;
+}
+
+void bfs() {
+    int head = 0, tail = 0;
+
+    dist[ori_r][ori_c] = 0;
+    qr[tail] = ori_r;
+    qc[tail] = ori_c;
+    tail++;
+
+    while (head < tail) {
+        int r = qr[head], c = qc[head];
+        head++;
+
+        for (int d = 0; d < 4; d++) {
+            int nr = r + dr[d];
+            int nc = c + dc[d];
+
+            if (fora_do_grid(nr, nc)) continue;
+            if (grid[nr][nc] == '#') continue;
+            if (dist[nr][nc] != -1)  continue;
+
+            dist[nr][nc] = dist[r][c] + 1;
+            qr[tail] = nr;
+            qc[tail] = nc;
+            tail++;
+        }
+    }
+}
+
+void imprimir_resultado() {
+    if (dist[dest_r][dest_c] == -1)
+        printf("Poxa... Parece que nao foi dessa vez que Rebeka conseguiu fugir\n");
+    else
+        printf("Apos correr %d metros e quase desistir por causa da distancia, Rebeka conseguiu escapar!\n",
+               dist[dest_r][dest_c]);
+}
+
+int main() {
+    scanf("%dx%d", &rows, &cols);
+
+    ler_grid();
+    inicializar_dist();
+    bfs();
+    imprimir_resultado();
+
+    return 0;
+}
