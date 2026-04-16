@@ -3,3 +3,23 @@ Após apliquei a formula de Gauss tanto nos multiplos do divisor1 quanto nos mul
 Dessa forma, sobrando somente o valor da soma dos numeros até o numero, removendo os multiplos do divisor A e do divisor B.
 
 Me utilizei do Claude para obter a formula de Gauss (não lembrava a formula com precisão nem o nome, somente sabia q existia e que seria mt útil), também utilizei para a correção de erros sintaticos.
+
+#include <stdio.h>
+
+int main() {
+    long long N, A, B;
+    scanf(" %lld", &N); 
+    scanf(" %lld %lld", &A, &B);
+
+    long long kA  = N / A,       kB  = N / B,       kAB = N / (A * B);
+    long long resultado = N * (N + 1) / 2
+                        - A   * kA  * (kA  + 1) / 2
+                        - B   * kB  * (kB  + 1) / 2
+                        + A*B * kAB * (kAB + 1) / 2;  
+    if (resultado % 2 == 0)
+        printf("%lld\nL� ele!!!\n", resultado);
+    else
+        printf("%lld\nOpa xupenio AULAS...\n", resultado);
+
+    return 0;
+}
