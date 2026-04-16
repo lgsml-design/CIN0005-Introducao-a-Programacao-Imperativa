@@ -1,1 +1,67 @@
-Utilizei a mesma ideia que vim a utilizar no teste, utilizei IA para a codagem . Prompt foram todos de logica, ou seja, dizia oq eu queria q fizesse ( não enviei a questão)
+Utilizei a mesma ideia que vim a utilizar no teste, utilizei IA para a codagem . Prompt foram todos de logica, ou seja, dizia oq eu queria q fizesse ( não enviei o texto da questão)
+
+
+#include <stdio.h>
+ 
+int main() {
+    int q;
+    scanf("%d", &q); // lê quantas operações vão acontecer
+
+    // cursor_col: onde o cursor está agora (começa "antes" de tudo)
+    // left_col / right_col: a faixa de colunas que já foram "visitadas" na linha atual
+    int cursor_col = -1;
+    int left_col   = -1;
+    int right_col  = -1;
+
+    for (int i = 0; i < q; i++) {
+        int x;
+        char c;
+        scanf("%d %c", &x, &c); // lê: quantas casas e pra qual direção/ação
+
+        if (c == 'D') {
+            // move o cursor x casas pra direita, atualizando os limites visitados
+            for (int j = 0; j < x; j++) {
+                cursor_col++;
+                if (left_col == -1)          left_col  = cursor_col; // primeiro movimento: define o limite esquerdo
+                if (cursor_col > right_col)  right_col = cursor_col; // expandiu pra direita?
+            }
+
+        } else if (c == 'E') {
+            // não dá pra ir mais pra esquerda do que o cursor permite
+            if (cursor_col < x) {
+                printf("Informacao invalida\n");
+                return 0;
+            }
+
+            // move o cursor x casas pra esquerda, atualizando os limites
+            for (int j = 0; j < x; j++) {
+                cursor_col--;
+                if (left_col == -1 || cursor_col < left_col) left_col  = cursor_col; // expandiu pra esquerda?
+                if (cursor_col > right_col)                   right_col = cursor_col;
+            }
+
+        } else {
+            // é um Enter (ou qualquer outro caractere) — quebra de linha x vezes
+
+            // se o cursor ainda não se moveu, assume que está na coluna 0
+            if (cursor_col < 0)
+                cursor_col = 0;
+
+            for (int j = 0; j < x; j++) {
+                // imprime a linha atual, se já tiver alguma coisa marcada
+                if (left_col != -1) {
+                    // espaços até o início da faixa, pontos na faixa visitada
+                    for (int col = 0; col <= right_col; col++)
+                        putchar(col >= left_col ? '.' : ' ');
+                    putchar('\n');
+                }
+
+                // começa uma nova linha: a faixa se reinicia no cursor atual
+                left_col  = cursor_col;
+                right_col = cursor_col;
+            }
+        }
+    }
+
+    // imprime a última linha, caso tenha conteúdo
+    if
