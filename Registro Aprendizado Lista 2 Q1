@@ -1,1 +1,53 @@
 Foi feita inteiramente por mim(sem utilizar IA)
+
+
+#include <stdio.h>
+
+int main(){
+    // Declara a variável que vai armazenar a letra (final character)
+    char fc;
+    
+    // Lê um caractere do teclado. O espaço antes do %c serve para ignorar 
+    // eventuais quebras de linha ou espaços em branco "presos" no buffer.
+    scanf(" %c", &fc);
+    
+    // Variável para armazenar a posição da letra no alfabeto (Ex: A=1, B=2, C=3)
+    int posicao_alfabetica;
+    
+    // Subtrair 'A' do caractere lido usa a tabela ASCII para descobrir a distância.
+    // Como 'A' é o ponto zero dessa distância, somamos 1 para a posição começar em 1.
+    posicao_alfabetica = (fc - 'A') + 1;
+
+    // Loop externo: controla a quantidade de linhas que serão impressas.
+    // Vai imprimir tantas linhas quanto for a posição da letra no alfabeto.
+    for(int i = 1; i <= posicao_alfabetica; i++){
+
+        // 1º Loop interno: imprime os PONTOS à ESQUERDA das letras.
+        // A quantidade de pontos diminui à medida que a linha (i) aumenta.
+        for(int j = 0; j < posicao_alfabetica - i; j++){
+            printf(".");
+        }
+
+        // 2º Loop interno: imprime as LETRAS em ordem CRESCENTE (lado esquerdo da pirâmide + centro).
+        // Vai imprimir de 'A' até a letra correspondente à linha atual.
+        for(int j = 0; j < i; j++){
+            printf("%c", 'A' + j);
+        }
+
+        // 3º Loop interno: imprime as LETRAS em ordem DECRESCENTE (lado direito da pirâmide).
+        // Começa uma letra antes da letra central (i - 2) e vai descendo até 'A' (0).
+        for(int j = i - 2; j >= 0; j--){
+            printf("%c", 'A' + j);
+        }
+
+        // 4º Loop interno: imprime os PONTOS à DIREITA das letras para manter a simetria.
+        for(int j = 0; j < posicao_alfabetica - i; j++){
+            printf(".");
+        }
+        
+        // Quebra de linha ao final de cada iteração do loop externo (terminou de desenhar a linha)
+        printf("\n");
+    }
+    
+    return 0;
+}
