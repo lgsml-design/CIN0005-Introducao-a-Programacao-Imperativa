@@ -1,0 +1,399 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Grid é só um apelido para int** — evita ficar repetindo o tipo
+// espalhado pelo código e deixa claro que estamos falando de uma grade 2D
+typedef int **Grid;
+
+/* ── Alocação / liberação / cópia ── */
+
+// Aloca a grade linha por linha. Usa calloc em vez de malloc nas linhas,
+// o que já inicializa tudo com zero — útil para não ter lixo de memória
+// nas células desde o início.
+Grid alloc_grid(int M, int N) {
+    Grid g = malloc(M * sizeof(int *));
+    for (int i = 0; i < M; i++)
+        g[i] = calloc(N, sizeof(int));  // já zera automaticamente
+    return g;
+}
+
+// Cria uma cópia independente da grade. Importante porque as funções de ataque
+// não modificam a grade original — elas trabalham numa cópia e retornam ela.
+// Assim dá pra comparar antes/depois sem perder o estado anterior.
+Grid copy_grid(Grid src, int M, int N) {
+    Grid g = alloc_grid(M, N);
+    for (int i = 0; i < M; i++)
+        for (int j = 0; j < N; j++)
+            g[i][j] = src[i][j];
+    return g;
+}
+
+// Liberação em dois passos: primeiro as linhas, depois o array de ponteiros.
+// Mesma lógica do código anterior — ordem inversa da alocação.
+void free_grid(Grid g, int M) {
+    for (int i = 0; i < M; i++)
+        free(g[i]);
+    free(g);
+}
+
+// Impressão padrão com espaço entre colunas mas sem espaço sobrando
+// no início de cada linha. O `if (j > 0)` cumpre esse papel.
+void print_grid(Grid g, int M, int N) {
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            if (j > 0) printf(" ");
+            printf("%d", g[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+/* ── Camadas de efeito ──
+   layer[i][j] = 0  → não afetado
+               = 1  → camada 1 (centro + ortogonais)
+               = 2  → camada 2 (8-dir das células da camada 1, exceto camada 1)
+*/
+
+// Calcula quais células pertencem a cada "anel" de efeito ao redor do centro.
+// Camada 1: a célula central e as 4 vizinhas ortogonais (cruz).
+// Camada 2: todos os vizinhos diagonais/ortogonais das células da camada 1
+//           que ainda não foram marcados — forma um anel externo.
+// Retorna uma grade auxiliar com esses rótulos (0, 1 ou 2).
+int **compute_layers(int M, int N, int cx, int cy) {
+    int **layer = malloc(M * sizeof(int *));
+    for (int i = 0; i < M; i++)
+        layer[i] = calloc(N, sizeof(int));  // começa tudo em 0 (não afetado)
+
+    /* Camada 1: centro + 4 direções ortogonais */
+    int l1[5][2] = { {cx, cy}, {cx-1, cy}, {cx+1, cy}, {cx, cy-1}, {cx, cy+1} };
+    for (int k = 0; k < 5; k++) {
+        int r = l1[k][0], c = l1[k][1];
+        if (r >= 0 && r < M && c >= 0 && c < N)  // ignora se estiver fora da grade
+            layer[r][c] = 1;
+    }
+
+    /* Camada 2: expande em 8 direções a partir de cada célula da camada 1 */
+    int dr[] = {-1,-1,-1, 0, 0, 1, 1, 1};
+    int dc[] = {-1, 0, 1,-1, 1,-1, 0, 1};
+    for (int k = 0; k < 5; k++) {
+        int r = l1[k][0], c = l1[k][1];
+        if (r < 0 || r >= M || c < 0 || c >= N) continue;  // pula se a origem já era inválida
+        for (int d = 0; d < 8; d++) {
+            int nr = r + dr[d], nc = c + dc[d];
+            // só marca como camada 2 se estiver dentro da grade E ainda não for camada 1
+            if (nr >= 0 && nr < M && nc >= 0 && nc < N && layer[nr][nc] == 0)
+                layer[nr][nc] = 2;
+        }
+    }
+    return layer;
+}
+
+void free_layers(int **layer, int M) {
+    for (int i = 0; i < M; i++) free(layer[i]);
+    free(layer);
+}
+
+/* ── Ponteiros para função ── */
+
+// Define um tipo para as funções de ataque: qualquer função que receba
+// uma grade, dimensões e coordenadas, e devolva uma nova grade modificada.
+// Isso permite trocar o ataque em tempo de execução sem if/switch.
+typedef Grid (*AttackFunc)(Grid, int, int, int, int);
+
+/* ── Explosão Arcana (turno único) ── */
+
+// Aplica dano fixo em área: 50 de dano na camada 1, 25 na camada 2.
+// Não modifica a grade original — trabalha na cópia e a retorna.
+// Células que chegariam a HP negativo são travadas em 0.
+Grid explosao_arcana_apply(Grid grid, int M, int N, int cx, int cy) {
+    int **layer = compute_layers(M, N, cx, cy);
+    Grid result = copy_grid(grid, M, N);
+
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            // operador ternário encadeado para escolher o dano pela camada
+            int dmg = (layer[i][j] == 1) ? 50 : (layer[i][j] == 2) ? 25 : 0;
+            result[i][j] -= dmg;
+            if (result[i][j] < 0) result[i][j] = 0;  // HP mínimo é 0
+        }
+    }
+    free_layers(layer, M);
+    return result;
+}
+
+/* ── Nuvem Venenosa (turno único) ── */
+
+// Conta quantos vizinhos (nas 8 direções) ainda estão vivos (HP > 0).
+// Isso influencia o dano da Nuvem Venenosa — quanto mais vizinhos vivos,
+// mais o veneno se espalha e mais forte fica.
+static int count_living_neighbors(Grid g, int M, int N, int r, int c) {
+    int dr[] = {-1,-1,-1, 0, 0, 1, 1, 1};
+    int dc[] = {-1, 0, 1,-1, 1,-1, 0, 1};
+    int count = 0;
+    for (int d = 0; d < 8; d++) {
+        int nr = r + dr[d], nc = c + dc[d];
+        if (nr >= 0 && nr < M && nc >= 0 && nc < N && g[nr][nc] > 0)
+            count++;
+    }
+    return count;
+}
+
+// Aplica um turno de dano da Nuvem Venenosa.
+// A fórmula é: dano = 5 + 8 × (número de vizinhos vivos).
+// O dano é calculado com base no estado ANTES do turno (grid original),
+// por isso usamos `grid` para contar vizinhos mas `result` para aplicar o dano —
+// todas as células sofrem o efeito "ao mesmo tempo", sem influenciar umas às outras.
+Grid nuvem_venenosa_apply(Grid grid, int M, int N, int cx, int cy) {
+    int **layer = compute_layers(M, N, cx, cy);
+    Grid result = copy_grid(grid, M, N);
+
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            if (layer[i][j] > 0) {  // só afeta células dentro da área de efeito
+                int vizinhos = count_living_neighbors(grid, M, N, i, j);
+                int dmg = 5 + 8 * vizinhos;
+                result[i][j] -= dmg;
+                if (result[i][j] < 0) result[i][j] = 0;
+            }
+        }
+    }
+    free_layers(layer, M);
+    return result;
+}
+
+/* ── Verifica se todas as células afetadas têm HP = 0 ── */
+
+// Condição de parada antecipada para a Nuvem Venenosa: se todos dentro
+// da área de efeito já chegaram a 0, não faz sentido continuar os turnos.
+static int area_all_dead(Grid g, int M, int N, int cx, int cy) {
+    int **layer = compute_layers(M, N, cx, cy);
+    int all_dead = 1;
+    for (int i = 0; i < M && all_dead; i++)
+        for (int j = 0; j < N && all_dead; j++)
+            if (layer[i][j] > 0 && g[i][j] > 0)
+                all_dead = 0;  // achou pelo menos uma célula ainda viva
+    free_layers(layer, M);
+    return all_dead;
+}
+
+/* ── Main ── */
+int main(void) {
+    int M, N;
+    scanf("%d %d", &M, &N);
+
+    Grid grid = alloc_grid(M, N);
+    for (int i = 0; i < M; i++)
+        for (int j = 0; j < N; j++)
+            scanf("%d", &grid[i][j]);
+
+    int cx, cy;
+    scanf("%d %d", &cx, &cy);  // centro do ataque
+
+    char attack[32];
+    scanf("%s", attack);  // "EXPLOSAO_ARCANA" ou "NUVEM_VENENOSA"
+
+    printf("Estado inicial do mapa:\n");
+    print_grid(grid, M, N);
+    printf("\n");
+
+    if (strcmp(attack, "EXPLOSAO_ARC#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Grid é só um apelido para int** — evita ficar repetindo o tipo
+// espalhado pelo código e deixa claro que estamos falando de uma grade 2D
+typedef int **Grid;
+
+/* ── Alocação / liberação / cópia ── */
+
+// Aloca a grade linha por linha. Usa calloc em vez de malloc nas linhas,
+// o que já inicializa tudo com zero — útil para não ter lixo de memória
+// nas células desde o início.
+Grid alloc_grid(int M, int N) {
+    Grid g = malloc(M * sizeof(int *));
+    for (int i = 0; i < M; i++)
+        g[i] = calloc(N, sizeof(int));  // já zera automaticamente
+    return g;
+}
+
+// Cria uma cópia independente da grade. Importante porque as funções de ataque
+// não modificam a grade original — elas trabalham numa cópia e retornam ela.
+// Assim dá pra comparar antes/depois sem perder o estado anterior.
+Grid copy_grid(Grid src, int M, int N) {
+    Grid g = alloc_grid(M, N);
+    for (int i = 0; i < M; i++)
+        for (int j = 0; j < N; j++)
+            g[i][j] = src[i][j];
+    return g;
+}
+
+// Liberação em dois passos: primeiro as linhas, depois o array de ponteiros.
+// Mesma lógica do código anterior — ordem inversa da alocação.
+void free_grid(Grid g, int M) {
+    for (int i = 0; i < M; i++)
+        free(g[i]);
+    free(g);
+}
+
+// Impressão padrão com espaço entre colunas mas sem espaço sobrando
+// no início de cada linha. O `if (j > 0)` cumpre esse papel.
+void print_grid(Grid g, int M, int N) {
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            if (j > 0) printf(" ");
+            printf("%d", g[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+/* ── Camadas de efeito ──
+   layer[i][j] = 0  → não afetado
+               = 1  → camada 1 (centro + ortogonais)
+               = 2  → camada 2 (8-dir das células da camada 1, exceto camada 1)
+*/
+
+// Calcula quais células pertencem a cada "anel" de efeito ao redor do centro.
+// Camada 1: a célula central e as 4 vizinhas ortogonais (cruz).
+// Camada 2: todos os vizinhos diagonais/ortogonais das células da camada 1
+//           que ainda não foram marcados — forma um anel externo.
+// Retorna uma grade auxiliar com esses rótulos (0, 1 ou 2).
+int **compute_layers(int M, int N, int cx, int cy) {
+    int **layer = malloc(M * sizeof(int *));
+    for (int i = 0; i < M; i++)
+        layer[i] = calloc(N, sizeof(int));  // começa tudo em 0 (não afetado)
+
+    /* Camada 1: centro + 4 direções ortogonais */
+    int l1[5][2] = { {cx, cy}, {cx-1, cy}, {cx+1, cy}, {cx, cy-1}, {cx, cy+1} };
+    for (int k = 0; k < 5; k++) {
+        int r = l1[k][0], c = l1[k][1];
+        if (r >= 0 && r < M && c >= 0 && c < N)  // ignora se estiver fora da grade
+            layer[r][c] = 1;
+    }
+
+    /* Camada 2: expande em 8 direções a partir de cada célula da camada 1 */
+    int dr[] = {-1,-1,-1, 0, 0, 1, 1, 1};
+    int dc[] = {-1, 0, 1,-1, 1,-1, 0, 1};
+    for (int k = 0; k < 5; k++) {
+        int r = l1[k][0], c = l1[k][1];
+        if (r < 0 || r >= M || c < 0 || c >= N) continue;  // pula se a origem já era inválida
+        for (int d = 0; d < 8; d++) {
+            int nr = r + dr[d], nc = c + dc[d];
+            // só marca como camada 2 se estiver dentro da grade E ainda não for camada 1
+            if (nr >= 0 && nr < M && nc >= 0 && nc < N && layer[nr][nc] == 0)
+                layer[nr][nc] = 2;
+        }
+    }
+    return layer;
+}
+
+void free_layers(int **layer, int M) {
+    for (int i = 0; i < M; i++) free(layer[i]);
+    free(layer);
+}
+
+/* ── Ponteiros para função ── */
+
+// Define um tipo para as funções de ataque: qualquer função que receba
+// uma grade, dimensões e coordenadas, e devolva uma nova grade modificada.
+// Isso permite trocar o ataque em tempo de execução sem if/switch.
+typedef Grid (*AttackFunc)(Grid, int, int, int, int);
+
+/* ── Explosão Arcana (turno único) ── */
+
+// Aplica dano fixo em área: 50 de dano na camada 1, 25 na camada 2.
+// Não modifica a grade original — trabalha na cópia e a retorna.
+// Células que chegariam a HP negativo são travadas em 0.
+Grid explosao_arcana_apply(Grid grid, int M, int N, int cx, int cy) {
+    int **layer = compute_layers(M, N, cx, cy);
+    Grid result = copy_grid(grid, M, N);
+
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            // operador ternário encadeado para escolher o dano pela camada
+            int dmg = (layer[i][j] == 1) ? 50 : (layer[i][j] == 2) ? 25 : 0;
+            result[i][j] -= dmg;
+            if (result[i][j] < 0) result[i][j] = 0;  // HP mínimo é 0
+        }
+    }
+    free_layers(layer, M);
+    return result;
+}
+
+/* ── Nuvem Venenosa (turno único) ── */
+
+// Conta quantos vizinhos (nas 8 direções) ainda estão vivos (HP > 0).
+// Isso influencia o dano da Nuvem Venenosa — quanto mais vizinhos vivos,
+// mais o veneno se espalha e mais forte fica.
+static int count_living_neighbors(Grid g, int M, int N, int r, int c) {
+    int dr[] = {-1,-1,-1, 0, 0, 1, 1, 1};
+    int dc[] = {-1, 0, 1,-1, 1,-1, 0, 1};
+    int count = 0;
+    for (int d = 0; d < 8; d++) {
+        int nr = r + dr[d], nc = c + dc[d];
+        if (nr >= 0 && nr < M && nc >= 0 && nc < N && g[nr][nc] > 0)
+            count++;
+    }
+    return count;
+}
+
+// Aplica um turno de dano da Nuvem Venenosa.
+// A fórmula é: dano = 5 + 8 × (número de vizinhos vivos).
+// O dano é calculado com base no estado ANTES do turno (grid original),
+// por isso usamos `grid` para contar vizinhos mas `result` para aplicar o dano —
+// todas as células sofrem o efeito "ao mesmo tempo", sem influenciar umas às outras.
+Grid nuvem_venenosa_apply(Grid grid, int M, int N, int cx, int cy) {
+    int **layer = compute_layers(M, N, cx, cy);
+    Grid result = copy_grid(grid, M, N);
+
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            if (layer[i][j] > 0) {  // só afeta células dentro da área de efeito
+                int vizinhos = count_living_neighbors(grid, M, N, i, j);
+                int dmg = 5 + 8 * vizinhos;
+                result[i][j] -= dmg;
+                if (result[i][j] < 0) result[i][j] = 0;
+            }
+        }
+    }
+    free_layers(layer, M);
+    return result;
+}
+
+/* ── Verifica se todas as células afetadas têm HP = 0 ── */
+
+// Condição de parada antecipada para a Nuvem Venenosa: se todos dentro
+// da área de efeito já chegaram a 0, não faz sentido continuar os turnos.
+static int area_all_dead(Grid g, int M, int N, int cx, int cy) {
+    int **layer = compute_layers(M, N, cx, cy);
+    int all_dead = 1;
+    for (int i = 0; i < M && all_dead; i++)
+        for (int j = 0; j < N && all_dead; j++)
+            if (layer[i][j] > 0 && g[i][j] > 0)
+                all_dead = 0;  // achou pelo menos uma célula ainda viva
+    free_layers(layer, M);
+    return all_dead;
+}
+
+/* ── Main ── */
+int main(void) {
+    int M, N;
+    scanf("%d %d", &M, &N);
+
+    Grid grid = alloc_grid(M, N);
+    for (int i = 0; i < M; i++)
+        for (int j = 0; j < N; j++)
+            scanf("%d", &grid[i][j]);
+
+    int cx, cy;
+    scanf("%d %d", &cx, &cy);  // centro do ataque
+
+    char attack[32];
+    scanf("%s", attack);  // "EXPLOSAO_ARCANA" ou "NUVEM_VENENOSA"
+
+    printf("Estado inicial do mapa:\n");
+    print_grid(grid, M, N);
+    printf("\n");
+
+    if (strcmp(attack, "EXPLOSAO_ARC
