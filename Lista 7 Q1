@@ -1,0 +1,151 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+// Estrutura que representa um jogo da coleção.
+// Strings são ponteiros para memória alocada dinamicamente — cada campo
+// ocupa exatamente o espaço que precisa, sem desperdício de buffer fixo.
+typedef struct {
+    char *titulo;
+    char *genero;
+    char *studio;
+    char *console;
+    int   nota;
+    int   ano;
+} Jogo;
+
+// Lê uma palavra do stdin e retorna uma cópia própria alocada na heap.
+// O buffer temporário de 256 chars serve só para capturar a entrada;
+// depois copiamos para um bloco do tamanho exato (strlen + 1 pro '\0').
+// Quem chamar essa função é responsável por dar free na string depois.
+char *lerString() {
+    char buf[256];
+    scanf("%s", buf);
+    char *s = (char *)malloc(strlen(buf) + 1);
+    strcpy(s, buf);
+    return s;
+}
+
+int main() {
+    int n;
+    scanf("%d", &n);
+
+    // Array de structs alocado dinamicamente — n jogos, cada um com seus campos.
+    // Diferente de alocar ponteiros para structs, aqui as structs ficam contíguas
+    // na memória; só os campos de string dentro delas é que apontam pra outros lugares.
+    Jogo *jogos = (Jogo *)malloc(n * sizeof(Jogo));
+
+    /* Cadastro dos jogos */
+    for (int i = 0; i < n; i++) {
+        // Cada chamada de lerString() faz um malloc interno — por isso o free
+        // no final precisa liberar campo por campo, não só o array de jogos.
+        jogos[i].titulo  = lerString();
+        jogos[i].genero  = lerString();
+        jogos[i].studio  = lerString();
+        jogos[i].console = lerString();
+        scanf("%d %d", &jogos[i].nota, &jogos[i].ano);
+
+        // Feedback imediato no cadastro: nota alta vira GOTY, nota baixa leva uma zoada.
+        // Só comenta jogos fora da faixa intermediária (4–7).
+        if (jogos[i].nota > 7)
+            printf("AWESOME! Mais um GOTY pra minha coleção!\n");
+        else if (jogos[i].nota < 4)
+            printf("Era melhor jogar mais um jogo de Mahjong.\n");
+    }
+
+    // Loop principal de comandos: lê uma função por vez até acabar a entrada (EOF).
+    // Não sabe quantos comandos vêm — por isso usa EOF como condição de parada.
+    char funcao[50];
+    char param[256];
+
+    while (scanf("%s", funcao) != EOF) {
+
+        if (strcmp(funcao, "printColecao") == 0) {
+            // Lista todos os jogos com título e nota — sem filtro, sem parâmetro.
+            for (int i = 0; i < n; i++)
+                printf("%s %d\n", jogos[i].titulo, jogos[i].nota);
+
+        } else if (strcmp(funcao, "printAno") == 0) {
+            scanf("%s", param);
+            int ano   = atoi(param);  // converte a string do ano para inteiro
+            int count = 0;
+
+            for (int i = 0; i < n; i++)
+                if (jogos[i].ano == ano) {
+                    printf("%s\n", jogos[i].titulo);
+                    count++;
+                }
+
+            // Padrão de resposta que se repete em todos os filtros:
+            // se não achou nada, xinga (educadamente). Se achou, mostra o total.
+            if (count == 0)
+                printf("Nenhum jogo tem esse parâmetro Sr Sr Wilson.\n");
+            else
+                printf("Tenho %d jogos || %s.\n", count, param);
+
+        } else if (strcmp(funcao, "printLetra") == 0) {
+            scanf("%s", param);
+            int count = 0;
+
+            for (int i = 0; i < n; i++)
+                // Compara só o primeiro caractere do título com o primeiro do parâmetro.
+                // param[0] funciona mesmo que o usuário mande uma letra ou uma palavra inteira.
+                if (jogos[i].titulo[0] == param[0]) {
+                    printf("%s\n", jogos[i].titulo);
+                    count++;
+                }
+
+            if (count == 0)
+                printf("Nenhum jogo tem esse parâmetro Sr Sr Wilson.\n");
+            else
+                printf("Tenho %d jogos || %s.\n", count, param);
+
+        } else if (strcmp(funcao, "printStudio") == 0) {
+            scanf("%s", param);
+            int count = 0;
+
+            // strcmp retorna 0 quando as strings são iguais — comparação exata,
+            // diferente de printLetra que só olha o primeiro char.
+            for (int i = 0; i < n; i++)
+                if (strcmp(jogos[i].studio, param) == 0) {
+                    printf("%s\n", jogos[i].titulo);
+                    count++;
+                }
+
+            if (count == 0)
+                printf("Nenhum jogo tem esse parâmetro Sr Sr Wilson.\n");
+            else
+                printf("Tenho %d jogos || %s.\n", count, param);
+
+        } else if (strcmp(funcao, "printConsole") == 0) {
+            scanf("%s", param);
+            int count = 0;
+
+            for (int i = 0; i < n; i++)
+                if (strcmp(jogos[i].console, param) == 0) {
+                    printf("%s\n", jogos[i].titulo);
+                    count++;
+                }
+
+            if (count == 0)
+                printf("Nenhum jogo tem esse parâmetro Sr Sr Wilson.\n");
+            else
+                printf("Tenho %d jogos || %s.\n", count, param);
+        }
+    }
+
+    printf("Enjoei de jogar, agora vou ver TV.\n");
+
+    // Liberação cuidadosa: cada string dentro de cada struct foi alocada
+    // separadamente por lerString(), então precisa de um free individual.
+    // Só depois de liberar os campos é que liberamos o array de structs.
+    for (int i = 0; i < n; i++) {
+        free(jogos[i].titulo);
+        free(jogos[i].genero);
+        free(jogos[i].studio);
+        free(jogos[i].console);
+    }
+    free(jogos);  // por último, o array em si
+
+    return 0;
+}
