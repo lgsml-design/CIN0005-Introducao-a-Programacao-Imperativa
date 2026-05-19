@@ -1,0 +1,253 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include <ctype.h>
+
+// Representa uma coleção de cidadelas armazenada em "arrays paralelos":
+// cidade[i], quantidade[i], peric[i] e funcao[i] descrevem a mesma cidadela.
+// Uma struct com arrays de structs seria mais organizada, mas essa abordagem
+// funciona e é mais fácil de trocar ponteiros durante a ordenação.
+struct cidadela {
+    char** cidade;
+    int*   quantidade;
+    char** peric;
+    char** funcao;
+};
+
+// Checa se um malloc/realloc de char** retornou NULL e aborta se sim.
+// Tem um pequeno problema aqui: free(matriz) não faz sentido se matriz é NULL
+// (free(NULL) é seguro em C, mas também inútil). O ideal seria liberar
+// o restante da memória já alocada antes de sair, mas para fins de exercício funciona.
+void verifica(char** matriz) {
+    if (matriz == NULL) {
+        free(matriz);
+        exit(1);
+    }
+}
+
+// Bubble sort com três chaves de desempate, aplicado sobre os arrays paralelos.
+// Chave 1: quantidade (maior primeiro).
+// Chave 2: se igual, periculosidade mais curta vem antes (strlen menor).
+// Chave 3: se ainda empatado, nome da cidade em ordem alfabética.
+// Quando há troca, todos os quatro arrays são trocados juntos — essencial
+// para manter os dados de cada cidadela sincronizados entre si.
+void ordenar_cidadelas(struct cidadela *c, int total) {
+    for (int i = 0; i < total - 1; i++) {
+        for (int j = 0; j < total - i - 1; j++) {
+            int trocar = 0;
+
+            if (c->quantidade[j] < c->quantidade[j + 1]) {
+                trocar = 1;
+            }
+            else if (c->quantidade[j] == c->quantidade[j + 1]) {
+                if (strlen(c->peric[j]) < strlen(c->peric[j + 1])) {
+                    trocar = 1;
+                }
+                else if (strlen(c->peric[j]) == strlen(c->peric[j + 1])) {
+                    if (strcmp(c->cidade[j], c->cidade[j + 1]) > 0) {
+                        trocar = 1;
+                    }
+                }
+            }
+
+            if (trocar) {
+                // Troca os ponteiros de string (barato — move endereço, não conteúdo)
+                char* tempC = c->cidade[j];
+                c->cidade[j] = c->cidade[j + 1];
+                c->cidade[j + 1] = tempC;
+
+                // Troca o inteiro por valor (cópia direta)
+                int tempQ = c->quantidade[j];
+                c->quantidade[j] = c->quantidade[j + 1];
+                c->quantidade[j + 1] = tempQ;
+
+                char* tempP = c->peric[j];
+                c->peric[j] = c->peric[j + 1];
+                c->peric[j + 1] = tempP;
+
+                char* tempF = c->funcao[j];
+                c->funcao[j] = c->funcao[j + 1];
+                c->funcao[j + 1] = tempF;
+            }
+        }
+    }
+}
+
+// Normaliza uma string para "Primeiro caractere maiúsculo, resto minúsculo".
+// Modifica a string no lugar (in-place) — quem chama precisa saber disso.
+void normalizar_titulo(char* str) {
+    if (str[0] == '\0') return;  // string vazia: nada a fazer
+
+    str[0] = toupper(str[0]);
+    for (int i = 1; str[i] != '\0'; i++) {
+        str[i] = tolower(str[i]);
+    }
+}
+
+int main() {
+    struct cidadela c;
+
+    // Começa alocando espaço para 1 elemento em cada array.
+    // O realloc no final do loop vai crescendo conforme necessário.
+    c.cidade    = malloc(1 * sizeof(char*));
+    verifica(c.cidade);
+
+    c.quantidade = malloc(1 * sizeof(int));
+    if (c.quantidade == NULL) { free(c.quantidade); exit(1); }
+
+    c.peric  = malloc(1 * sizeof(char*));
+    verifica(c.peric);
+
+    c.funcao = malloc(1 * sizeof(char*));
+    verifica(c.funcao);
+
+    int idx = 0;         // quantas cidadelas já foram lidas
+    int chave = 0;       // flag: a linha contém '!' (linha especial de índice)
+    int indice = -1;     // índice de Gingrey (-1 = ainda não encontrado)
+    char linha[200];
+
+    // Lê linha por linha, incluindo espaços (o formato %[^\n] para antes do \n).
+    while (scanf(" %[^\n]", linha) != EOF) {
+
+        int num1 = 0, num2 = 0, num3 = 0, num4 = 0;
+        char city[50];
+        int  quant[50] = {0};
+        char per[50];
+        char function[50];
+
+        // Parser manual da linha: classifica cada caractere pelo tipo
+        // e o distribui para o campo correto. A lógica é frágil (depende
+        // do formato exato da entrada), mas funciona para o problema proposto.
+        for (int i = 0; linha[i] != '\0'; i++) {
+
+            if (linha[i] == ' ' && linha[i + 1] == ' ') {
+                // Espaço duplo indica início do campo "funcao":
+                // pega o primeiro caractere alfabético depois dos espaços.
+                for (int j = i + 1; linha[j] != '\0'; j++) {
+                    if (isalpha(linha[j])) {
+                        function[num4] = linha[j];
+                        break;
+                    }
+                }
+                num4++;
+            }
+            else if (isdigit(linha[i])) {
+                quant[num2] = linha[i] - '0';  // guarda cada dígito separado
+                num2++;
+            }
+            else if (isupper(linha[i])) {
+                city[num1] = linha[i];           // só letras maiúsculas vão pro nome da cidade
+                num1++;
+            }
+            else if (linha[i] == '*') {
+                per[num3] = linha[i];            // asteriscos representam o nível de periculosidade
+                num3++;
+            }
+            else if (linha[i] == '!') chave = 1; // marca que essa linha é o índice de Gingrey
+        }
+
+        city[num1]     = '\0';
+        per[num3]      = '\0';
+        function[num4] = '\0';
+
+        // Reconstrói o número a partir dos dígitos coletados (ex: [1,2,3] → 123).
+        // Usa potências de 10 para dar o peso certo a cada posição.
+        int soma = 0;
+        for (int i = 0; i < num2; i++) {
+            soma += (quant[i] * (int)pow(10, num2 - i - 1));
+        }
+
+        // Se a linha tinha '!', o número lido é o índice de Gingrey — não uma cidadela.
+        if (chave == 1) {
+            indice = soma;
+            chave  = 0;
+            continue;  // pula para a próxima linha sem cadastrar cidadela
+        }
+
+        // strdup aloca e copia a string de uma vez — mais limpo que malloc + strcpy.
+        // Se falhar, libera o que dá e aborta (tratamento de erro linha por linha).
+        c.cidade[idx] = strdup(city);
+        if (c.cidade[idx] == NULL) {
+            for (int j = 0; j < idx; j++) free(c.cidade[j]);
+            free(c.cidade);
+            exit(1);
+        }
+
+        c.quantidade[idx] = soma;
+
+        c.peric[idx] = strdup(per);
+        if (c.peric[idx] == NULL) {
+            for (int j = 0; j < idx; j++) free(c.peric[j]);
+            free(c.peric);
+            exit(1);
+        }
+
+        c.funcao[idx] = strdup(function);
+        if (c.funcao[idx] == NULL) {
+            for (int j = 0; j < idx; j++) free(c.funcao[j]);
+            free(c.funcao);
+            exit(1);
+        }
+
+        idx++;
+
+        // Expande cada array para comportar o próximo elemento.
+        // Usa variável temporária para não perder o ponteiro original se realloc falhar.
+        char** temp1 = realloc(c.cidade,    (idx + 1) * sizeof(char*));
+        verifica(temp1);
+        c.cidade = temp1;
+
+        char** temp2 = realloc(c.peric,     (idx + 1) * sizeof(char*));
+        verifica(temp2);
+        c.peric = temp2;
+
+        int* temp3   = realloc(c.quantidade, (idx + 1) * sizeof(int));
+        if (temp3 == NULL) { free(temp3); exit(1); }
+        c.quantidade = temp3;
+
+        char** temp4 = realloc(c.funcao,    (idx + 1) * sizeof(char*));
+        verifica(temp4);
+        c.funcao = temp4;
+    }
+
+    if (indice == -1) {
+        // Nenhuma linha com '!' foi encontrada — Gingrey não tem localização definida.
+        puts("Gingrey ainda não foi achada, vamos esperar mais um pouco.");
+    } else {
+        ordenar_cidadelas(&c, idx);
+
+        indice--;  // converte de índice 1-based (entrada) para 0-based (array)
+
+        normalizar_titulo(c.cidade[indice]);
+        normalizar_titulo(c.funcao[indice]);
+
+        printf("Gingrey foi encontrada em %s, uma cidadela com %d mil habitantes "
+               "cuja função é %s e periculosidade %s.",
+               c.cidade[indice], c.quantidade[indice],
+               c.funcao[indice], c.peric[indice]);
+
+        // Classifica a cidadela em duas dimensões independentes para escolher o aviso final.
+        int denso    = (c.quantidade[indice] > 1000);
+        int perigoso = (strlen(c.peric[indice]) > 3);  // mais de 3 asteriscos = muito perigoso
+
+        if  (denso && !perigoso) puts(" Um lugar denso, vai ser difícil achar ela.");
+        else if (!denso && perigoso) puts(" Vai ser complicado entrar lá.");
+        else if  (denso && perigoso) puts(" Talvez seja melhor desistir...");
+        // se nem denso nem perigoso: nenhuma mensagem extra, só o printf acima
+    }
+
+    // Libera string por string dentro de cada cidadela, depois os arrays em si.
+    // quantidade não tem strings internas, então vai direto para o free do array.
+    for (int i = 0; i < idx; i++) {
+        free(c.cidade[i]);
+        free(c.peric[i]);
+        free(c.funcao[i]);
+    }
+    free(c.cidade);
+    free(c.peric);
+    free(c.funcao);
+    free(c.quantidade);
+
+    return 0;
+}
