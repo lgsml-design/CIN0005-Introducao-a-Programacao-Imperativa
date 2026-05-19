@@ -1,0 +1,67 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+/* ── Alocação ── */
+int **alocar(int L, int C) {
+    int **m = malloc(L * sizeof(int *));
+    for (int i = 0; i < L; i++)
+        m[i] = malloc(C * sizeof(int));
+    return m;
+}
+
+/* ── Leitura ── */
+void ler(int **m, int L, int C) {
+    for (int i = 0; i < L; i++)
+        for (int j = 0; j < C; j++)
+            scanf("%d", &m[i][j]);
+}
+
+/* ── Impressão ── */
+void imprimir(int **m, int L, int C) {
+    for (int i = 0; i < L; i++) {
+        for (int j = 0; j < C; j++) {
+            if (j) printf(" ");
+            printf("%d", m[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+/* ── Liberação ── */
+void liberar(int **m, int L) {
+    for (int i = 0; i < L; i++)
+        free(m[i]);
+    free(m);
+}
+
+/* ── Operações ── */
+int dobro(int x)    { return 2 * x; }
+int quadrado(int x) { return x * x; }
+int absoluto(int x) { return x < 0 ? -x : x; }
+
+/* ── Aplica operação via ponteiro para função ── */
+void aplicar(int **m, int L, int C, int (*op)(int)) {
+    for (int i = 0; i < L; i++)
+        for (int j = 0; j < C; j++)
+            m[i][j] = op(m[i][j]);
+}
+
+/* ── Main ── */
+int main(void) {
+    int L, C, escolha;
+    scanf("%d %d", &L, &C);
+
+    int **m = alocar(L, C);
+    ler(m, L, C);
+    scanf("%d", &escolha);
+
+    /* tabela de operações */
+    int (*ops[])(int) = { dobro, quadrado, absoluto };
+
+    if (escolha >= 1 && escolha <= 3)
+        aplicar(m, L, C, ops[escolha - 1]);
+
+    imprimir(m, L, C);
+    liberar(m, L);
+    return 0;
+}
