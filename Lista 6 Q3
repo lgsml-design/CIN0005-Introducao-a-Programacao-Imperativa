@@ -1,0 +1,121 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+/* ── Tipos ─────────────────────────────────────────────────────────────── */
+
+// Cria um apelido legível para "ponteiro para função que recebe int e retorna int".
+// Sem esse typedef, declarar arrays ou parâmetros de filtro ficaria bem mais verboso.
+typedef int (*Filtro)(int);
+
+/* ── Filtros disponíveis ────────────────────────────────────────────────── */
+
+// Cada filtro é uma transformação simples de um valor — o mesmo padrão
+// de função "int → int" que o typedef acima descreve.
+
+int calibracao(int v)   { return v + 5; }         // desloca todos os valores +5 (correção de offset)
+int saturacao(int v)    { return v > 80 ? 80 : v; } // trava o valor no máximo 80 (evita overflow de sinal)
+int amplificador(int v) { return v * 2; }           // dobra o sinal
+
+// Tabela global indexada por ID (1, 2, 3).
+// O índice 0 fica como NULL de propósito — IDs começam em 1, então
+// tabela_filtros[cmd] já dá o filtro certo sem precisar de -1 em lugar nenhum.
+static Filtro tabela_filtros[4] = { NULL, calibracao, saturacao, amplificador };
+
+/* ── Alocação / liberação de matriz dinâmica ────────────────────────────── */
+
+// Alocação linha por linha — mesmo padrão dos códigos anteriores.
+// Aqui usa malloc (sem inicializar), porque os valores vão ser lidos na sequência.
+int **alocar_matriz(int n, int m) {
+    int **mat = (int **)malloc(n * sizeof(int *));
+    for (int i = 0; i < n; i++)
+        mat[i] = (int *)malloc(m * sizeof(int));
+    return mat;
+}
+
+// Libera na ordem inversa da alocação: linhas primeiro, ponteiro de linhas depois.
+void liberar_matriz(int **mat, int n) {
+    for (int i = 0; i < n; i++) free(mat[i]);
+    free(mat);
+}
+
+/* ── Função central: modificar ──────────────────────────────────────────── */
+
+// Aqui está o coração do programa: aplica um pipeline de filtros em sequência
+// sobre cada elemento da matriz. O loop mais interno percorre os filtros —
+// ou seja, cada célula passa pelo filtro 0, depois pelo 1, depois pelo 2...
+// até esgotar os k filtros do pipeline. A ordem importa.
+void modificar(int **mat, int n, int m, Filtro *pipeline, int k) {
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            for (int f = 0; f < k; f++)
+                mat[i][j] = pipeline[f](mat[i][j]);  // aplica cada filtro em cadeia
+}
+
+/* ── Impressão e sensor crítico ─────────────────────────────────────────── */
+
+void imprimir_matriz(int **mat, int n, int m) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            if (j) printf(" ");   // espaço só entre colunas, nunca antes da primeira
+            printf("%d", mat[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+// Percorre a matriz inteira em busca do maior valor e guarda sua posição.
+// Começa assumindo que o máximo é mat[0][0] — válido desde que a matriz
+// tenha pelo menos uma célula (o que é garantido pelas entradas n, m > 0).
+void sensor_critico(int **mat, int n, int m) {
+    int max = mat[0][0], li = 0, col = 0;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            if (mat[i][j] > max) { max = mat[i][j]; li = i; col = j; }
+    printf("\nSensor critico: %d\nPosicao: (%d,%d)\n", max, li, col);
+}
+
+/* ── main ───────────────────────────────────────────────────────────────── */
+int main(void) {
+    int n, m;
+    scanf("%d %d", &n, &m);
+
+    int **mat = alocar_matriz(n, m);
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            scanf("%d", &mat[i][j]);
+
+    int cmd;
+    // Loop de comandos: lê um inteiro por vez até receber 0 (sentinela de parada).
+    // Isso permite encadear quantos comandos quiser antes de imprimir o resultado.
+    while (scanf("%d", &cmd) == 1 && cmd != 0) {
+
+        if (cmd >= 1 && cmd <= 3) {
+            // Comando simples: monta um pipeline de apenas 1 filtro e aplica.
+            // Usa a tabela global para não precisar de if/switch por filtro.
+            Filtro pipe[1] = { tabela_filtros[cmd] };
+            modificar(mat, n, m, pipe, 1);
+
+        } else if (cmd == 4) {
+            // Comando de pipeline customizado: lê k IDs de filtros em sequência
+            // e monta o array dinamicamente — tamanho só é conhecido em runtime.
+            int k;
+            scanf("%d", &k);
+
+            Filtro *pipe = (Filtro *)malloc(k * sizeof(Filtro));
+            for (int f = 0; f < k; f++) {
+                int id;
+                scanf("%d", &id);
+                pipe[f] = tabela_filtros[id];  // traduz ID para ponteiro de função
+            }
+            modificar(mat, n, m, pipe, k);
+            free(pipe);  // pipeline temporário — libera logo após usar
+        }
+    }
+
+    printf("Matriz processada:\n");
+    imprimir_matriz(mat, n, m);
+    sensor_critico(mat, n, m);
+
+    liberar_matriz(mat, n);
+    return 0;
+}
