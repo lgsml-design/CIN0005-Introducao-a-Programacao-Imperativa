@@ -1,0 +1,103 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+/* =========================================================================
+   ESTRUTURA DE DADOS
+   ========================================================================= */
+
+/* Definição da estrutura do nó da árvore */
+typedef struct No {
+    int valor;               /* Valor numérico armazenado no nó */
+    struct No *esquerda;     /* Ponteiro para o filho à esquerda (valores menores) */
+    struct No *direita;      /* Ponteiro para o filho à direita (valores maiores) */
+} No;
+
+/* =========================================================================
+   FUNÇÕES DE CRIAÇÃO E INSERÇÃO
+   ========================================================================= */
+
+/* Cria e inicializa um novo nó dinamicamente na memória */
+No* criarNo(int valor) {
+    No* novoNo = (No*)malloc(sizeof(No));
+    if (novoNo == NULL) {
+        fprintf(stderr, "Erro de alocação de memória.\n");
+        exit(1);
+    }
+    novoNo->valor = valor;
+    novoNo->esquerda = NULL;  /* Novo nó nasce sem filho à esquerda */
+    novoNo->direita = NULL;   /* Novo nó nasce sem filho à direita */
+    return novoNo;
+}
+
+/* Insere um elemento na Árvore Binária de Busca (Propriedade da BST) */
+No* inserir(No* raiz, int valor) {
+    /* Se a árvore (ou subárvore) estiver vazia, cria o nó aqui */
+    if (raiz == NULL) {
+        return criarNo(valor);
+    }
+    
+    /* Se o valor for menor que o nó atual, vai para a esquerda */
+    if (valor < raiz->valor) {
+        raiz->esquerda = inserir(raiz->esquerda, valor);
+    } 
+    /* Se o valor for maior que o nó atual, vai para a direita */
+    else if (valor > raiz->valor) {
+        raiz->direita = inserir(raiz->direita, valor);
+    }
+    /* Se o valor for igual, ele cai aqui e é ignorado (não aceita duplicados) */
+    
+    return raiz;
+}
+
+/* =========================================================================
+   FUNÇÕES DE PERCURSO (TRAVERSAL)
+   ========================================================================= */
+
+/* Percurso em Pré-Ordem: Raiz -> Esquerda -> Direita */
+void preOrdem(No* raiz, int *primeiro) {
+    if (raiz == NULL) return;
+    
+    if (*primeiro) {
+        printf("%d", raiz->valor); /* Imprime o primeiro elemento sem espaço antes */
+        *primeiro = 0;
+    } else {
+        printf(" %d", raiz->valor); /* Imprime os demais elementos com um espaço antes */
+    }
+    
+    preOrdem(raiz->esquerda, primeiro);  /* Visita a subárvore esquerda */
+    preOrdem(raiz->direita, primeiro);   /* Visita a subárvore direita */
+}
+
+/* Percurso em Em-Ordem: Esquerda -> Raiz -> Direita */
+void emOrdem(No* raiz, int *primeiro) {
+    if (raiz == NULL) return;
+    
+    emOrdem(raiz->esquerda, primeiro);   /* Visita toda a subárvore esquerda primeiro */
+    
+    if (*primeiro) {
+        printf("%d", raiz->valor);
+        *primeiro = 0;
+    } else {
+        printf(" %d", raiz->valor);
+    }
+    
+    emOrdem(raiz->direita, primeiro);    /* Visita a subárvore direita */
+}
+
+/* Percurso em Pós-Ordem: Esquerda -> Direita -> Raiz */
+void posOrdem(No* raiz, int *primeiro) {
+    if (raiz == NULL) return;
+    
+    posOrdem(raiz->esquerda, primeiro);  /* Visita a subárvore esquerda */
+    posOrdem(raiz->direita, primeiro);   /* Visita a subárvore direita */
+    
+    if (*primeiro) {
+        printf("%d", raiz->valor);  /* Visita a raiz por último */
+        *primeiro = 0;
+    } else {
+        printf(" %d", raiz->valor);
+    }
+}
+
+/* =========================================================================
+   FUNÇÕES ESTATÍST
