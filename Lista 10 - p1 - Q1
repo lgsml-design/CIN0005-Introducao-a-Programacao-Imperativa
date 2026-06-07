@@ -1,0 +1,167 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+/* =========================================================================
+   ESTRUTURAS DE DADOS
+   ========================================================================= */
+
+/* Define o nó da lista encadeada que representará cada bloco na pilha */
+typedef struct No {
+    char cor;             /* Armazena o caractere que representa a cor (ex: 'r', 'g', 'b') */
+    struct No *abaixo;    /* Ponteiro para o próximo nó que está logo abaixo deste na pilha */
+} No;
+
+/* Define a estrutura de controle da Pilha */
+typedef struct {
+    No *topo;             /* Ponteiro para o nó que está no topo da pilha */
+    int tamanho;          /* Contador para acompanhar a quantidade de elementos na pilha */
+} Pilha;
+
+/* =========================================================================
+   FUNÇÕES DE MANIPULAÇÃO DA PILHA
+   ========================================================================= */
+
+/* Inicializa a pilha definindo-a como vazia */
+void inicializar(Pilha *p) {
+    p->topo = NULL;
+    p->tamanho = 0;
+}
+
+/* Insere (empilha) um novo elemento no topo da pilha */
+void empilhar(Pilha *p, char cor) {
+    /* Aloca memória dinamicamente para o novo nó */
+    No *novo = (No *)malloc(sizeof(No));
+    if (!novo) { 
+        fprintf(stderr, "Erro de alocação!\n"); 
+        exit(1); 
+    }
+    
+    novo->cor = cor;         /* Atribui a cor ao novo bloco */
+    novo->abaixo = p->topo;  /* O novo bloco aponta para o antigo topo */
+    p->topo = novo;          /* O topo da pilha passa a ser o novo bloco */
+    p->tamanho++;            /* Incrementa o tamanho da pilha */
+}
+
+/* Remove (desempilha) o elemento do topo e retorna a sua cor */
+char desempilhar(Pilha *p) {
+    if (!p->topo) return 0;  /* Se a pilha estiver vazia, retorna 0 (nulo) */
+    
+    No *removido = p->topo;   /* Guarda o ponteiro do nó que será removido */
+    char cor = removido->cor; /* Salva a cor para poder retorná-la */
+    p->topo = removido->abaixo; /* O topo passa a ser o elemento de baixo */
+    p->tamanho--;             /* Decrementa o tamanho da pilha */
+    
+    free(removido);          /* Libera a memória do nó deletado */
+    return cor;              /* Retorna a cor do elemento que saiu */
+}
+
+/* Espia o 1º elemento (o topo atual) sem removê-lo */
+char peek(Pilha *p) {
+    return p->topo ? p->topo->cor : 0;
+}
+
+/* Espia o 2º elemento (logo abaixo do topo) sem removê-lo */
+char peek2(Pilha *p) {
+    return (p->topo && p->topo->abaixo) ? p->topo->abaixo->cor : 0;
+}
+
+/* Espia o 3º elemento (dois níveis abaixo do topo) sem removê-lo */
+char peek3(Pilha *p) {
+    if (p->topo && p->topo->abaixo && p->topo->abaixo->abaixo)
+        return p->topo->abaixo->abaixo->cor;
+    return 0;
+}
+
+/* =========================================================================
+   LÓGICA E REGRAS DO JOGO
+   ========================================================================= */
+
+/* Analisa o topo da pilha e aplica as regras de eliminação e combinação */
+void aplicar_regras(Pilha *p) {
+    int mudou = 1; /* Flag/Sinalizador para continuar o loop se alguma regra for aplicada */
+    
+    while (mudou) {
+        mudou = 0; /* Reseta o sinalizador a cada iteração */
+
+        /* --- Regra 1: TRÊS blocos iguais seguidos no topo -> Eles se eliminam --- */
+        if (p->tamanho >= 3 &&
+            peek(p) == peek2(p) &&
+            peek2(p) == peek3(p)) {
+            
+            /* Remove os 3 elementos idênticos */
+            desempilhar(p);
+            desempilhar(p);
+            desempilhar(p);
+            
+            mudou = 1; /* Sinaliza que houve alteração, forçando nova verificação */
+            continue;  /* Volta para o início do loop while */
+        }
+
+        /* --- Regra 2: PAR de cores diferentes no topo -> Combinam-se em uma nova cor --- */
+        if (p->tamanho >= 2) {
+            char a = peek2(p); /* Segundo elemento */
+            char b = peek(p);  /* Elemento do topo */
+            char resultado = 0;
+
+            /* Lógica de mistura (Mistura de Cores Primárias de Luz / RGB):
+               - Green (g) + Blue (b) = Cyan (c)
+               - Red (r) + Blue (b) = Magenta (m)
+               - Red (r) + Green (g) = Yellow (y) */
+            if ((a == 'g' && b == 'b') || (a == 'b' && b == 'g')) resultado = 'c';
+            else if ((a == 'r' && b == 'b') || (a == 'b' && b == 'r')) resultado = 'm';
+            else if ((a == 'r' && b == 'g') || (a == 'g' && b == 'r')) resultado = 'y';
+
+            /* Se os dois blocos formaram uma combinação válida */
+            if (resultado) {
+                desempilhar(p);          /* Remove o primeiro */
+                desempilhar(p);          /* Remove o segundo */
+                empilhar(p, resultado);  /* Adiciona a cor resultante da mistura */
+                mudou = 1;               /* Sinaliza alteração para reavaliar a pilha */
+            }
+        }
+    }
+}
+
+/* Exibe o estado atual da pilha na tela */
+void imprimir(Pilha *p) {
+    if (p->tamanho == 0) {
+        printf("Pilha vazia!\n");
+    } else {
+        /* Percorre a pilha do topo até a base imprimindo cada cor */
+        No *atual = p->topo;
+        while (atual) {
+            printf("%c\n", atual->cor);
+            atual = atual->abaixo;
+        }
+    }
+    printf("\n");  /* Imprime uma linha em branco para separar as jogadas */
+}
+
+/* Esvazia a pilha completamente e libera a memória alocada */
+void destruir(Pilha *p) {
+    while (p->topo)
+        desempilhar(p);
+}
+
+/* =========================================================================
+   FLUXO PRINCIPAL
+   ========================================================================= */
+
+int main() {
+    Pilha pilha;
+    inicializar(&pilha);
+
+    char c;
+    /* Lê caracteres continuamente da entrada padrão (ignorando espaços/quebras de linha) */
+    while (scanf(" %c", &c) == 1) {
+        empilhar(&pilha, c);     /* Coloca a nova cor digitada na pilha */
+        aplicar_regras(&pilha);  /* Dispara o processo de fusão/eliminação de cores */
+        imprimir(&pilha);        /* Mostra como a pilha ficou após as regras */
+    }
+
+    /* Mensagem final de agradecimento exibida ao encerrar o programa (EOF) */
+    printf("Thank You So Much For Playing My Game!\n");
+    
+    destruir(&pilha); /* Limpeza final de memória */
+    return 0;
+}
