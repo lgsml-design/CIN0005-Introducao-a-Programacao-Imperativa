@@ -1,0 +1,141 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+/* =========================================================================
+   ESTRUTURAS DE DADOS
+   ========================================================================= */
+
+/* Estrutura que armazena os dados cadastrais e de sistema de um Aluno */
+typedef struct Aluno {
+    long long mat;  /* Número de matrícula do aluno */
+    int pri;        /* Prioridade do aluno (quanto menor o valor, maior a prioridade) */
+    double cr;      /* Coeficiente de Rendimento (CR) */
+    long long L;    /* Limite inferior: tempo mínimo em que o aluno pode ser processado */
+    long long R;    /* Limite superior: tempo máximo (se o relógio passar de R, dá Timeout) */
+    int score;      /* Pontuação calculada com base no CR e na Prioridade */
+} Aluno;
+
+/* Nó da lista encadeada dinâmica para implementar a Fila */
+typedef struct No {
+    Aluno aluno;     /* Cópia dos dados do aluno armazenado neste nó */
+    struct No *prox; /* Ponteiro para o próximo nó da fila */
+} No;
+
+/* Estrutura de controle da Fila (FIFO) */
+typedef struct Fila {
+    No *inicio;   /* Ponteiro para o primeiro elemento (quem sai primeiro) */
+    No *fim;      /* Ponteiro para o último elemento (onde novos elementos entram) */
+    int tamanho;  /* Contador de elementos na fila */
+} Fila;
+
+/* =========================================================================
+   FUNÇÕES DE MANIPULAÇÃO DA FILA
+   ========================================================================= */
+
+/* Inicializa a estrutura da fila apontando os ponteiros para NULL e zerando o tamanho */
+void inicializarFila(Fila *f) {
+    f->inicio = NULL;
+    f->fim = NULL;
+    f->tamanho = 0;
+}
+
+/* Insere (enfileira) um aluno no final da fila */
+void enqueue(Fila *f, Aluno a) {
+    No *novo = (No *)malloc(sizeof(No));
+    if (!novo) {
+        fprintf(stderr, "Erro de alocacao de memoria.\n");
+        exit(1);
+    }
+    novo->aluno = a;
+    novo->prox = NULL;
+
+    /* Se a fila estiver vazia, o novo nó é tanto o início quanto o fim */
+    if (f->fim == NULL) {
+        f->inicio = novo;
+        f->fim = novo;
+    } else {
+        /* Caso contrário, encadeia no final e atualiza o ponteiro de fim */
+        f->fim->prox = novo;
+        f->fim = novo;
+    }
+    f->tamanho++;
+}
+
+/* Remove (desenfileira) o aluno do início da fila. 
+   Retorna 1 se a remoção foi bem-sucedida ou 0 se a fila estiver vazia. */
+int dequeue(Fila *f, Aluno *dest) {
+    if (f->inicio == NULL) return 0;
+
+    No *temp = f->inicio;
+    *dest = temp->aluno;      /* Copia os dados do aluno para a variável de destino */
+    f->inicio = temp->prox;   /* Avança o início da fila para o próximo nó */
+    
+    /* Se a fila ficou vazia após a remoção, o fim também deve apontar para NULL */
+    if (f->inicio == NULL) f->fim = NULL;
+    
+    free(temp);              /* Libera a memória alocada para o nó removido */
+    f->tamanho--;
+    return 1;
+}
+
+/* Esvazia completamente a fila, liberando a memória de todos os nós restantes */
+void liberarFila(Fila *f) {
+    Aluno a;
+    while (dequeue(f, &a)); /* Executa o dequeue até que ele retorne 0 (fila vazia) */
+}
+
+/* =========================================================================
+   CÁLCULO DE SCORE
+   ========================================================================= */
+
+/* Calcula a pontuação de prioridade do aluno.
+   Multiplica o CR por 100, arredonda, e divide pela prioridade (pri). */
+int calcularScore(double cr, int pri) {
+    return (int)round(cr * 100) / pri;
+}
+
+/* =========================================================================
+   PROGRAMA PRINCIPAL (MÁQUINA DE ESTADOS)
+   ========================================================================= */
+
+int main(void) {
+    char comando[16];          /* String para ler as instruções (START, ADD, PROC, FIM) */
+    char nome_disciplina[60];  /* Nome da disciplina atual */
+    int vagas;                 /* Quantidade de vagas disponíveis na disciplina */
+
+    Fila filaReq;    /* Fila de requisições pendentes (alunos aguardando processamento) */
+    Fila filaConf;   /* Fila de alunos confirmados (que conseguiram vaga) */
+    inicializarFila(&filaReq);
+    inicializarFila(&filaConf);
+
+    long long relogio = 1; /* Relógio virtual do servidor (unidades de tempo/segundos) */
+
+    /* Executa o loop enquanto houver comandos formatados para ler da entrada */
+    while (scanf("%15s", comando) == 1) {
+
+        /* ---- COMANDO: START ---- */
+        /* Inicializa ou reinicia uma rodada de inscrições para uma disciplina */
+        if (strcmp(comando, "START") == 0) {
+            scanf("%59s %d", nome_disciplina, &vagas);
+            /* Limpa os estados e filas de execuções anteriores */
+            liberarFila(&filaReq);
+            liberarFila(&filaConf);
+            relogio = 1; /* O relógio do servidor reseta para 1 */
+        }
+
+        /* ---- COMANDO: ADD ---- */
+        /* Recebe um novo aluno e o coloca na fila de requisições */
+        else if (strcmp(comando, "ADD") == 0) {
+            Aluno a;
+            scanf("%lld %d %lf %lld %lld",
+                  &a.mat, &a.pri, &a.cr, &a.L, &a.R);
+            a.score = calcularScore(a.cr, a.pri); /* Calcula o score antes do enfileiramento */
+            enqueue(&filaReq, a);
+        }
+
+        /* ---- COMANDO: PROC ---- */
+        /* Processa até uma quantidade 'qtd' de requisições que estão na fila */
+        else if (strcmp(comando, "PROC") == 0) {
+            int
