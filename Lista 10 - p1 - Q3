@@ -1,0 +1,134 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+/* =========================================================================
+   ESTRUTURA DE DADOS
+   ========================================================================= */
+
+/* Define o nó da lista encadeada que representará cada Tarefa na fila */
+typedef struct Tarefa {
+    int id;                 /* Identificador único da tarefa */
+    int prioridade;         /* Nível de prioridade da tarefa */
+    struct Tarefa *prox;    /* Ponteiro para a próxima tarefa na fila */
+} Tarefa;
+
+/* Ponteiros globais de controle da fila */
+Tarefa *head = NULL; /* Aponta para o início da fila (quem será removido primeiro) */
+Tarefa *tail = NULL; /* Aponta para o fim da fila (onde novas tarefas entram) */
+
+/* =========================================================================
+   FUNÇÕES DE MANIPULAÇÃO DA FILA
+   ========================================================================= */
+
+/* Insere uma nova tarefa no fim da fila (Operação Enqueue) */
+void inserir(int id, int prioridade) {
+    /* Aloca memória dinamicamente para a nova tarefa */
+    Tarefa *nova = (Tarefa *)malloc(sizeof(Tarefa));
+    if (nova == NULL) {
+        printf("Erro ao alocar memoria.\n");
+        return;
+    }
+    
+    /* Inicializa os dados da nova tarefa */
+    nova->id = id;
+    nova->prioridade = prioridade;
+    nova->prox = NULL; /* Como ela entra no fim, não há ninguém depois dela */
+
+    /* Se a fila estiver completamente vazia */
+    if (tail == NULL) {
+        head = nova; /* O início passa a ser a nova tarefa */
+        tail = nova; /* O fim também passa a ser a nova tarefa */
+    } else {
+        /* Se já houver elementos, encadeia a nova tarefa após o atual 'tail' */
+        tail->prox = nova;
+        tail = nova; /* Atualiza o ponteiro de fim para apontar para a nova tarefa */
+    }
+}
+
+/* Remove a tarefa do início da fila (Operação Dequeue) */
+void remover() {
+    /* Verifica se a fila está vazia antes de tentar remover */
+    if (head == NULL) {
+        printf("Fila vazia\n");
+        return;
+    }
+
+    /* Guarda o ponteiro do nó que será removido */
+    Tarefa *removida = head;
+    printf("Removida: id=%d prioridade=%d\n", removida->id, removida->prioridade);
+
+    /* Avança o ponteiro de início para a próxima tarefa da fila */
+    head = head->prox;
+    
+    /* Se a fila ficou vazia após a remoção, o ponteiro 'tail' também deve ser resetado */
+    if (head == NULL) {
+        tail = NULL;
+    }
+
+    /* Libera a memória da tarefa que foi desenfileirada */
+    free(removida);
+}
+
+/* Percorre e exibe todas as tarefas da fila do início ao fim */
+void listar() {
+    /* Verifica se há elementos para exibir */
+    if (head == NULL) {
+        printf("Fila vazia\n");
+        return;
+    }
+
+    /* Ponteiro auxiliar para navegar pela lista sem perder a referência do 'head' */
+    Tarefa *atual = head;
+    while (atual != NULL) {
+        printf("id=%d prioridade=%d\n", atual->id, atual->prioridade);
+        atual = atual->prox; /* Avança para o próximo nó */
+    }
+}
+
+/* Esvazia a fila completamente, liberando a memória de todos os nós */
+void liberar_fila() {
+    while (head != NULL) {
+        Tarefa *temp = head; /* Guarda o nó atual */
+        head = head->prox;   /* Avança o head para o próximo */
+        free(temp);          /* Libera o nó guardado */
+    }
+    tail = NULL; /* Reseta o ponteiro de fim após limpar tudo */
+}
+
+/* =========================================================================
+   FLUXO PRINCIPAL (INTERFACE via TERMINAL)
+   ========================================================================= */
+
+int main() {
+    char comando;
+    int id, prioridade;
+
+    /* Loop lê continuamente um caractere de comando (ignorando espaços em branco) */
+    while (scanf(" %c", &comando) == 1) {
+        switch (comando) {
+            case 'I': /* Inserir: lê ID e Prioridade e enfileira */
+                scanf("%d %d", &id, &prioridade);
+                inserir(id, prioridade);
+                break;
+                
+            case 'R': /* Remover: desenfileira o elemento do topo/início */
+                remover();
+                break;
+                
+            case 'L': /* Listar: mostra a fila atual */
+                listar();
+                break;
+                
+            case 'F': /* Finalizar: limpa a memória e encerra o programa */
+                liberar_fila();
+                return 0;
+                
+            default: /* Tratamento para entradas inválidas */
+                printf("Comando desconhecido: %c\n", comando);
+        }
+    }
+
+    /* Proteção: garante que a memória será limpa caso o loop termine sem o comando 'F' */
+    liberar_fila();
+    return 0;
+}
